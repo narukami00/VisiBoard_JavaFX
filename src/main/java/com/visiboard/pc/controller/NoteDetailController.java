@@ -62,44 +62,43 @@ public class NoteDetailController {
 
             String picUrl = note.getUser().getProfilePicUrl();
             
-            // Load image - support both URLs and base64 data URIs
+            // Load image using cache service
             final String finalName = name;
-            try {
-                javafx.scene.image.Image image;
-                
-                if (picUrl != null && picUrl.startsWith("data:image/")) {
-                    // Base64 data URI - extract and decode
-                    System.out.println("[Image] Loading base64 image for: " + name);
-                    String base64Data = picUrl.substring(picUrl.indexOf(",") + 1);
-                    byte[] imageBytes = java.util.Base64.getDecoder().decode(base64Data);
-                    image = new javafx.scene.image.Image(new java.io.ByteArrayInputStream(imageBytes));
-                } else if (picUrl != null && !picUrl.isEmpty()) {
-                    // Regular URL
-                    System.out.println("[Image] Loading from URL: " + picUrl); // Log ACTUAL URL
-                    image = new javafx.scene.image.Image(picUrl, true);
-                } else {
-                    // Use generated avatar
-                    System.out.println("[Image] Using generated avatar for: " + name);
-                    String avatarUrl = "https://ui-avatars.com/api/?name=" + name.replace(" ", "+") + "&background=e94560&color=fff&size=48";
-                    image = new javafx.scene.image.Image(avatarUrl, true);
-                }
-                
-                image.errorProperty().addListener((obs, oldError, newError) -> {
-                    if (newError) {
-                        System.out.println("[Image] Error loading image, using fallback for: " + finalName);
-                        // Force fallback on FX thread
-                        javafx.application.Platform.runLater(() -> {
-                            String fallbackUrl = "https://ui-avatars.com/api/?name=" + finalName.substring(0, 1) + "&background=e94560&color=fff&size=48";
-                            userAvatar.setImage(new javafx.scene.image.Image(fallbackUrl, true));
-                        });
-                    }
-                });
-                userAvatar.setImage(image);
-            } catch (Exception e) {
-                System.err.println("Error loading profile image: " + e.getMessage());
-                String fallbackUrl = "https://ui-avatars.com/api/?name=" + finalName.substring(0, 1) + "&background=e94560&color=fff&size=48";
-                userAvatar.setImage(new javafx.scene.image.Image(fallbackUrl, true));
+            String imageUrl = picUrl;
+            if (imageUrl == null || imageUrl.isEmpty()) {
+                // Use generated avatar
+                imageUrl = "https://ui-avatars.com/api/?name=" + name.replace(" ", "+") + "&background=e94560&color=fff&size=48";
             }
+            
+            System.out.println("[Image] Loading image for: " + name + " from: " + imageUrl);
+            
+            String finalImageUrl = imageUrl;
+            com.visiboard.pc.service.ImageCacheService.getInstance()
+                .getImage(imageUrl)
+                .thenAccept(image -> {
+                    javafx.application.Platform.runLater(() -> {
+                        if (image != null) {
+                            userAvatar.setImage(image);
+                        } else {
+                            // Fallback to generated avatar
+                            String fallbackUrl = "https://ui-avatars.com/api/?name=" + 
+                                finalName.substring(0, 1) + "&background=e94560&color=fff&size=48";
+                            com.visiboard.pc.service.ImageCacheService.getInstance()
+                                .getImage(fallbackUrl)
+                                .thenAccept(fallbackImage -> {
+                                    javafx.application.Platform.runLater(() -> {
+                                        if (fallbackImage != null) {
+                                            userAvatar.setImage(fallbackImage);
+                                        }
+                                    });
+                                });
+                        }
+                    });
+                })
+                .exceptionally(e -> {
+                    System.err.println("Error loading profile image: " + e.getMessage());
+                    return null;
+                });
             
             // Show delete button if current user owns the note
             String currentUserEmail = UserSession.getInstance().getUserEmail();
@@ -200,31 +199,25 @@ public class NoteDetailController {
             }
         }
         
-        if (comment.getUser() != null && comment.getUser().getProfilePicUrl() != null) {
-            try {
-                String picUrl = comment.getUser().getProfilePicUrl();
-                javafx.scene.image.Image image;
-                
-                if (picUrl.startsWith("data:image/")) {
-                    // Base64 data URI
-                    String base64Data = picUrl.substring(picUrl.indexOf(",") + 1);
-                    byte[] imageBytes = java.util.Base64.getDecoder().decode(base64Data);
-                    image = new javafx.scene.image.Image(new java.io.ByteArrayInputStream(imageBytes));
-                } else {
-                    // Regular URL
-                    image = new javafx.scene.image.Image(picUrl, true);
-                }
-                
-                final String finalUserName = userName;
-                image.errorProperty().addListener((obs, oldError, newError) -> {
-                    if (newError) {
-                        javafx.application.Platform.runLater(() -> setDefaultAvatar(avatar, finalUserName));
-                    }
+        String picUrl = (comment.getUser() != null) ? comment.getUser().getProfilePicUrl() : null;
+        
+        if (picUrl != null && !picUrl.isEmpty()) {
+            final String finalUserName = userName;
+            com.visiboard.pc.service.ImageCacheService.getInstance()
+                .getImage(picUrl)
+                .thenAccept(image -> {
+                    javafx.application.Platform.runLater(() -> {
+                        if (image != null) {
+                            avatar.setImage(image);
+                        } else {
+                            setDefaultAvatar(avatar, finalUserName);
+                        }
+                    });
+                })
+                .exceptionally(e -> {
+                    javafx.application.Platform.runLater(() -> setDefaultAvatar(avatar, finalUserName));
+                    return null;
                 });
-                avatar.setImage(image);
-            } catch (Exception e) {
-                setDefaultAvatar(avatar, userName);
-            }
         } else {
             setDefaultAvatar(avatar, userName);
         }
@@ -246,7 +239,13 @@ public class NoteDetailController {
     private void setDefaultAvatar(ImageView avatar, String name) {
         String initial = (name != null && !name.isEmpty()) ? name.substring(0, 1).toUpperCase() : "?";
         String url = "https://ui-avatars.com/api/?name=" + initial + "&background=e94560&color=fff&size=64";
-        avatar.setImage(new javafx.scene.image.Image(url, true));
+        com.visiboard.pc.service.ImageCacheService.getInstance()
+            .getImage(url)
+            .thenAccept(image -> {
+                if (image != null) {
+                    javafx.application.Platform.runLater(() -> avatar.setImage(image));
+                }
+            });
     }
 
     @FXML
