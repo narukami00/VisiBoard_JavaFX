@@ -1,0 +1,200 @@
+/* Modern VisiBoard Note Details Stylesheet */
+
+/* Root Container */
+.note-detail-container {
+    -fx-background-color: #f5f7fa;
+    -fx-padding: 24;
+    -fx-background-radius: 16;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.15), 12, 0, 0, 4);
+}
+
+/* Header Section */
+.header-section {
+    -fx-background-color: white;
+    -fx-padding: 16;
+    -fx-background-radius: 12;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.05), 6, 0, 0, 2);
+}
+
+.user-name {
+    -fx-font-family: "Segoe UI Semibold";
+    -fx-font-size: 16px;
+    -fx-text-fill: #2d3436;
+    -fx-font-weight: bold;
+}
+
+.timestamp {
+    -fx-font-family: "Segoe UI";
+    -fx-font-size: 12px;
+    -fx-text-fill: #636e72;
+}
+
+/* Content Section */
+.content-section {
+    -fx-background-color: white;
+    -fx-padding: 20;
+    -fx-background-radius: 12;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.05), 6, 0, 0, 2);
+}
+
+.note-content {
+    -fx-font-family: "Segoe UI";
+    -fx-font-size: 15px;
+    -fx-text-fill: #2d3436;
+    -fx-line-spacing: 4px;
+}
+
+/* Interaction Buttons */
+.modern-button {
+    -fx-background-color: white;
+    -fx-text-fill: #e94560;
+    -fx-border-color: #e94560;
+    -fx-border-width: 2;
+    -fx-border-radius: 20;
+    -fx-background-radius: 20;
+    -fx-padding: 8 20 8 20;
+    -fx-font-family: "Segoe UI Semibold";
+    -fx-font-size: 13px;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, rgba(233, 69, 96, 0.2), 4, 0, 0, 2);
+}
+
+.modern-button:hover {
+    -fx-background-color: #ffe5ea;
+    -fx-scale-x: 1.05;
+    -fx-scale-y: 1.05;
+}
+
+.modern-button:pressed {
+    -fx-background-color: #ffd1da;
+    -fx-scale-x: 0.98;
+    -fx-scale-y: 0.98;
+}
+
+.modern-button-liked {
+    -fx-background-color: #e94560;
+    -fx-text-fill: white;
+    -fx-border-color: #e94560;
+}
+
+.modern-button-liked:hover {
+    -fx-background-color: #d93852;
+}
+
+/* Delete Button */
+.delete-button {
+    -fx-background-color: transparent;
+    -fx-text-fill: #ff6b6b;
+    -fx-border-color: #ff6b6b;
+    -fx-border-width: 2;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-padding: 6 16 6 16;
+    -fx-font-family: "Segoe UI Semibold";
+    -fx-font-size: 12px;
+    -fx-cursor: hand;
+}
+
+.delete-button:hover {
+    -fx-background-color: #fff3f3;
+}
+
+.delete-button:pressed {
+    -fx-background-color: #ffd4d4;
+}
+
+/* Post Button */
+.post-button {
+    -fx-background-color: #0f3460;
+    -fx-text-fill: white;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-padding: 8 20 8 20;
+    -fx-font-family: "Segoe UI Semibold";
+    -fx-font-size: 13px;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, rgba(15, 52, 96, 0.3), 6, 0, 0, 2);
+}
+
+.post-button:hover {
+    -fx-background-color: #1a4a7f;
+}
+
+.post-button:pressed {
+    -fx-background-color: #0a2440;
+}
+
+/* Comment Input */
+.comment-input {
+    -fx-background-color: white;
+    -fx-border-color: #dfe6e9;
+    -fx-border-width: 2;
+    -fx-border-radius: 12;
+    -fx-background-radius: 12;
+    -fx-padding: 10;
+    -fx-font-family: "Segoe UI";
+    -fx-font-size: 13px;
+    -fx-text-fill: #2d3436;
+}
+
+.comment-input:focused {
+    -fx-border-color: #0f3460;
+    -fx-effect: dropshadow(gaussian, rgba(15, 52, 96, 0.1), 6, 0, 0, 2);
+}
+
+/* Comments Container */
+.comments-container {
+    -fx-background-color: transparent;
+    -fx-padding: 10;
+}
+
+/* Labels */
+.section-label {
+    -fx-font-family: "Segoe UI Semibold";
+    -fx-font-size: 14px;
+    -fx-text-fill: #2d3436;
+    -fx-font-weight: bold;
+}
+
+.count-label {
+    -fx-font-family: "Segoe UI";
+    -fx-font-size: 14px;
+    -fx-text-fill: #636e72;
+}
+
+/* Divider */
+.divider {
+    -fx-border-color: #dfe6e9;
+    -fx-border-width: 0 0 1 0;
+}
+
+/* ScrollPane */
+.scroll-pane {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.scroll-pane .viewport {
+    -fx-background-color: transparent;
+}
+
+.scroll-pane .scroll-bar:vertical {
+    -fx-background-color: transparent;
+    -fx-padding: 0 4 0 0;
+}
+
+.scroll-pane .scroll-bar:vertical .thumb {
+    -fx-background-color: #dfe6e9;
+    -fx-background-radius: 10;
+}
+
+.scroll-pane .scroll-bar:vertical .thumb:hover {
+    -fx-background-color: #b2bec3;
+}
+
+.scroll-pane .scroll-bar:vertical .increment-button,
+.scroll-pane .scroll-bar:vertical .decrement-button {
+    -fx-background-color: transparent;
+    -fx-background-radius: 0;
+    -fx-padding: 0;
+}

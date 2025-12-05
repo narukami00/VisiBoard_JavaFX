@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.osmbuildings.org/classic/0.2.2b/OSMBuildings-Leaflet.js"></script>
+  <style>
+    html, body, #map {
+      width: 100%; height: 100%; margin: 0; padding: 0;
+      background-color: #1a1a2e;
+    }
+    .leaflet-popup-content-wrapper {
+      background-color: #16213e;
+      color: #fff;
+      border: 1px solid #0f3460;
+    }
+    .leaflet-popup-tip {
+      background-color: #16213e;
+    }
+    .leaflet-container {
+        background: #1a1a2e;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <script>
+    // Initialize Leaflet Map
+    var map = L.map('map').setView([40.7128, -74.0060], 16); // NYC default
+
+    // Tile Layers
+    var darkTiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; OpenStreetMap &copy; CARTO',
+      subdomains: 'abcd',
+      maxZoom: 20
+    });
+
+    var lightTiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; OpenStreetMap &copy; CARTO',
+      subdomains: 'abcd',
+      maxZoom: 20
+    });
+
+    // Add default layer (Light)
+    lightTiles.addTo(map);
+
+    // Add 2.5D Buildings
+    var osmb = new OSMBuildings(map).load('https://{s}.data.osmbuildings.org/0.2/anonymous/tile/{z}/{x}/{y}.json');
+    
+    // Default Style (Light Mode)
+    osmb.style({ color: '#666666', roofColor: '#aaaaaa' });
+
+    function setTheme(theme) {
+        if (theme === 'dark') {
+            map.removeLayer(lightTiles);
+            darkTiles.addTo(map);
+            document.getElementById('map').style.backgroundColor = '#1a1a2e';
+            osmb.style({ color: 'rgb(233, 69, 96)', roofColor: 'rgb(233, 69, 96)' });
+            document.body.style.backgroundColor = '#1a1a2e';
+        } else {
+            map.removeLayer(darkTiles);
+            lightTiles.addTo(map);
+            document.getElementById('map').style.backgroundColor = '#ffffff';
+            osmb.style({ color: '#666666', roofColor: '#aaaaaa' });
+            document.body.style.backgroundColor = '#ffffff';
+        }
+    }
+    
+    // Java Connector Bridge
+    var javaConnector = {
+        openNoteDetail: function(noteId) { console.log("Open Note: " + noteId); },
+        onMapClicked: function(lat, lng) { console.log("Map Clicked: " + lat + ", " + lng); }
+    };
+
+    // Add Note Mode Flag
+    var isAddNoteMode = false;
+
+    function setAddNoteMode(enabled) {
+        isAddNoteMode = enabled;
+        if (enabled) {
+            document.getElementById('map').style.cursor = 'crosshair';
+        } else {
+            document.getElementById('map').style.cursor = 'grab';
+        }
+    }
+
+    // Map Click Event
+    map.on('click', function(e) {
+        console.log("Map clicked at " + e.latlng);
+        if (isAddNoteMode) {
+            console.log("Add Note Mode Active. Calling JavaConnector.");
+            // Call Java to open Compose Window
+            if (window.javaConnector) {
+                window.javaConnector.onMapClicked(e.latlng.lat, e.latlng.lng);
+            } else {
+                console.error("JavaConnector not found on map click!");
+            }
+        }
+    });
+
+    // Function to add notes with custom floating markers
+    function addNotes(notesJson) {
+      try {
+        const notes = JSON.parse(notesJson);
+        var bounds = [];
+
+        // Clear existing markers if needed (not implemented here for simplicity)
+
+        notes.forEach(note => {
+          if (note.lat && note.lng) {
+            
+            // Android-like Vibrant Colors
+            var colors = [
+                '#6C5CE7', '#74B9FF', '#00B894', '#FF6B6B', 
+                '#FDCB6E', '#E17055', '#A29BFE', '#55EFC4', 
+                '#FF7675', '#FD79A8', '#00CEC9', '#81ECEC'
+            ];
+            // Hash function for consistent color
+            var hash = 0;
+            var str = note.id + (note.content || "");
+            for (var i = 0; i < str.length; i++) {
+                hash = str.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            var colorIndex = Math.abs(hash) % colors.length;
+            var randomColor = colors[colorIndex];
+            
+            // Truncate text
+            var shortText = note.content ? (note.content.length > 20 ? note.content.substring(0, 20) + "..." : note.content) : "New Note";
+
+            // Custom Icon (Text Bubble)
+            var customIcon = L.divIcon({
+                className: 'custom-div-icon',
+                html: "<div style='background-color: " + randomColor + "; padding: 8px 12px; border-radius: 16px; border: 2px solid rgba(255,255,255,0.3); box-shadow: 0 4px 6px rgba(0,0,0,0.2); color: white; font-weight: bold; font-family: sans-serif; white-space: nowrap; font-size: 14px; text-shadow: 0 1px 2px rgba(0,0,0,0.3);'>" + shortText + "</div>",
+                iconSize: [null, null], // Auto size
+                iconAnchor: [40, 20] // Approximate center
+            });
+
+            var marker = L.marker([note.lat, note.lng], {icon: customIcon}).addTo(map);
+            
+            // Store ID in marker options for easy access
+            marker.noteId = note.id;
+
+            // Click Event -> Open JavaFX Detail Window
+            marker.on('click', function(e) {
+                console.log("Marker clicked: " + this.noteId);
+                if (window.javaConnector) {
+                    window.javaConnector.openNoteDetail(this.noteId);
+                } else {
+                    console.error("JavaConnector not found on marker click!");
+                }
+                L.DomEvent.stopPropagation(e); // Prevent map click
+            });
+            
+            bounds.push([note.lat, note.lng]);
+          }
+        });
+
+        if (bounds.length > 0) {
+          map.fitBounds(bounds, { padding: [50, 50] });
+        }
+      } catch (e) {
+        console.error("Error adding notes: " + e);
+      }
+    }
+  </script>
+</body>
+</html>

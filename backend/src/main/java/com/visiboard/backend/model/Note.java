@@ -1,0 +1,92 @@
+package com.visiboard.backend.model;
+
+import jakarta.persistence.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import org.locationtech.jts.geom.Point;
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+@Entity
+@Table(name = "notes")
+public class Note {
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
+
+    @ManyToOne
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
+
+    @Column(columnDefinition = "TEXT")
+    private String content;
+
+    @Column(columnDefinition = "TEXT")
+    private String summary;
+
+    @JsonIgnore
+    @Column(columnDefinition = "geometry(Point,4326)")
+    private Point location;
+
+    private LocalDateTime createdAt;
+    private int likesCount;
+    private int commentsCount;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+    }
+
+    public Note() {}
+
+    // Getters and Setters
+    public UUID getId() { return id; }
+    public void setId(UUID id) { this.id = id; }
+
+    public User getUser() { return user; }
+    public void setUser(User user) { this.user = user; }
+
+    public String getContent() { return content; }
+    public void setContent(String content) { this.content = content; }
+
+    public String getSummary() { return summary; }
+    public void setSummary(String summary) { this.summary = summary; }
+
+    @JsonIgnore
+    public Point getLocation() { return location; }
+    public void setLocation(Point location) { this.location = location; }
+
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public int getLikesCount() { return likesCount; }
+    public void setLikesCount(int likesCount) { this.likesCount = likesCount; }
+
+    public int getCommentsCount() { return commentsCount; }
+    public void setCommentsCount(int commentsCount) { this.commentsCount = commentsCount; }
+    
+    // Transient getters for latitude and longitude (for JSON serialization)
+    @com.fasterxml.jackson.annotation.JsonProperty("lat")
+    public Double getLat() {
+        return location != null ? location.getY() : null;
+    }
+    
+    @com.fasterxml.jackson.annotation.JsonProperty("lng")
+    public Double getLng() {
+        return location != null ? location.getX() : null;
+    }
+    
+    public void setLat(double lat) {
+        double lng = (this.location != null) ? this.location.getX() : 0.0;
+        this.location = new org.locationtech.jts.geom.GeometryFactory().createPoint(new org.locationtech.jts.geom.Coordinate(lng, lat));
+    }
+    
+    public void setLng(double lng) {
+        double lat = (this.location != null) ? this.location.getY() : 0.0;
+        this.location = new org.locationtech.jts.geom.GeometryFactory().createPoint(new org.locationtech.jts.geom.Coordinate(lng, lat));
+    }
+    @Transient
+    private java.util.List<String> likedByUsers = new java.util.ArrayList<>();
+
+    public java.util.List<String> getLikedByUsers() { return likedByUsers; }
+    public void setLikedByUsers(java.util.List<String> likedByUsers) { this.likedByUsers = likedByUsers; }
+}

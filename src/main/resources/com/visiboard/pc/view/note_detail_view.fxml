@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.TextArea?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.shape.Circle?>
+
+<VBox xmlns="http://javafx.com/javafx" 
+      xmlns:fx="http://javafx.com/fxml" 
+      fx:controller="com.visiboard.pc.controller.NoteDetailController"
+      styleClass="note-detail-container"
+      stylesheets="@note_detail.css"
+      spacing="16"
+      prefWidth="500" 
+      prefHeight="650">
+
+    <!-- Header Section -->
+    <VBox styleClass="header-section" spacing="12">
+        <HBox spacing="12" alignment="CENTER_LEFT">
+            <ImageView fx:id="userAvatar" fitWidth="50" fitHeight="50" preserveRatio="true">
+                <clip>
+                    <Circle radius="25" centerX="25" centerY="25"/>
+                </clip>
+            </ImageView>
+            
+            <VBox spacing="2" HBox.hgrow="ALWAYS">
+                <Label fx:id="userNameLabel" text="User Name" styleClass="user-name"/>
+                <Label fx:id="timestampLabel" text="2 hours ago" styleClass="timestamp"/>
+            </VBox>
+            
+            <Button fx:id="deleteButton" 
+                    text="Delete" 
+                    onAction="#handleDelete" 
+                    visible="false" 
+                    styleClass="delete-button"/>
+        </HBox>
+    </VBox>
+
+    <!-- Content Section -->
+    <VBox styleClass="content-section" spacing="16">
+        <Label fx:id="contentLabel" 
+               text="Note content goes here..." 
+               wrapText="true" 
+               styleClass="content-label"/>
+        
+        <!-- Stats Section -->
+        <HBox spacing="20" alignment="CENTER_LEFT">
+            <Label fx:id="likesCountLabel" text="0 likes" styleClass="stat-label"/>
+            <Label fx:id="commentsCountLabel" text="0 comments" styleClass="stat-label"/>
+        </HBox>
+        
+        <!-- Action Buttons -->
+        <HBox spacing="12">
+            <Button fx:id="likeButton" 
+                    text="Like" 
+                    onAction="#handleLike" 
+                    styleClass="modern-button"/>
+        </HBox>
+        
+        <!-- Comments Section -->
+        <Label text="Comments" styleClass="section-title"/>
+        <ScrollPane fitToWidth="true" 
+                    VBox.vgrow="ALWAYS" 
+                    styleClass="scroll-pane"
+                    hbarPolicy="NEVER">
+            <VBox fx:id="commentsContainer" 
+                  spacing="12" 
+                  styleClass="comments-container"/>
+        </ScrollPane>
+        
+        <!-- Add Comment -->
+        <HBox spacing="12" alignment="CENTER">
+            <TextArea fx:id="commentInput" 
+                      promptText="Write a comment..." 
+                      prefHeight="60" 
+                      wrapText="true" 
+                      styleClass="comment-input"
+                      HBox.hgrow="ALWAYS"/>
+            <Button text="Post" 
+                    onAction="#handlePostComment" 
+                    styleClass="post-button"/>
+        </HBox>
+    </VBox>
+
+</VBox>

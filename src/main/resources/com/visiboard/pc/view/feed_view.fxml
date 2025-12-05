@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.shape.Circle?>
+<?import javafx.scene.text.Font?>
+
+<ScrollPane fitToWidth="true" xmlns:fx="http://javafx.com/fxml" style="-fx-background-color: transparent;">
+    <VBox spacing="15.0" style="-fx-padding: 20;">
+        <Label text="Your Feed">
+            <font>
+                <Font name="System Bold" size="24.0"/>
+            </font>
+        </Label>
+        
+        <!-- Mock Post 1 -->
+        <VBox style="-fx-background-color: white; -fx-padding: 15; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 10, 0, 0, 0); -fx-background-radius: 5;">
+            <HBox spacing="10" alignment="CENTER_LEFT">
+                <Circle radius="20" fill="lightgray"/>
+                <VBox>
+                    <Label text="User One" style="-fx-font-weight: bold;"/>
+                    <Label text="2 hours ago" textFill="gray"/>
+                </VBox>
+            </HBox>
+            <Label text="Just exploring the city! Found this amazing coffee shop." wrapText="true" style="-fx-padding: 10 0 0 0;"/>
+        </VBox>
+
+        <!-- Mock Post 2 -->
+        <VBox style="-fx-background-color: white; -fx-padding: 15; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 10, 0, 0, 0); -fx-background-radius: 5;">
+            <HBox spacing="10" alignment="CENTER_LEFT">
+                <Circle radius="20" fill="lightgray"/>
+                <VBox>
+                    <Label text="User Two" style="-fx-font-weight: bold;"/>
+                    <Label text="5 hours ago" textFill="gray"/>
+                </VBox>
+            </HBox>
+            <Label text="The view from here is incredible." wrapText="true" style="-fx-padding: 10 0 0 0;"/>
+        </VBox>
+        
+         <!-- Mock Post 3 -->
+        <VBox style="-fx-background-color: white; -fx-padding: 15; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 10, 0, 0, 0); -fx-background-radius: 5;">
+            <HBox spacing="10" alignment="CENTER_LEFT">
+                <Circle radius="20" fill="lightgray"/>
+                <VBox>
+                    <Label text="User Three" style="-fx-font-weight: bold;"/>
+                    <Label text="1 day ago" textFill="gray"/>
+                </VBox>
+            </HBox>
+            <Label text="Anyone up for a meetup this weekend?" wrapText="true" style="-fx-padding: 10 0 0 0;"/>
+        </VBox>
+
+    </VBox>
+</ScrollPane>
