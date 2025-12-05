@@ -218,85 +218,131 @@ public class SyncService {
             e.printStackTrace();
         }
 
-        // Sync Comments from subcollections
+        // Sync Comments from subcollections (Optimized)
         try {
-            // Get all notes and check their comments subcollection
-            db.collection("notes").get().get().getDocuments().forEach(noteDoc -> {
+            System.out.println("Starting optimized comment sync from Firebase...");
+            long startTime = System.currentTimeMillis();
+            
+            // Build lookup maps for O(1) access
+            java.util.Map<String, Note> contentToNoteMap = new java.util.HashMap<>();
+            java.util.List<Note> allNotes = noteRepository.findAll();
+            for (Note n : allNotes) {
+                if (n.getContent() != null && !n.getContent().isEmpty()) {
+                    contentToNoteMap.put(n.getContent(), n);
+                }
+            }
+            System.out.println("Built note lookup map with " + contentToNoteMap.size() + " entries");
+            
+            // Cache users for faster lookups
+            java.util.Map<String, User> userCache = new java.util.HashMap<>();
+            
+            // Get existing comments to avoid duplicates
+            java.util.Set<String> existingComments = new java.util.HashSet<>();
+            for (com.visiboard.backend.model.Comment c : commentRepository.findAll()) {
+                if (c.getNote() != null && c.getContent() != null) {
+                    existingComments.add(c.getNote().getId() + "|" + c.getContent());
+                }
+            }
+            System.out.println("Found " + existingComments.size() + " existing comments in database");
+            
+            int syncedCount = 0;
+            int skippedCount = 0;
+            
+            // Fetch all Firebase notes
+            java.util.List<com.google.cloud.firestore.QueryDocumentSnapshot> firebaseNotes = 
+                db.collection("notes").get().get().getDocuments();
+            
+            System.out.println("Processing " + firebaseNotes.size() + " Firebase notes for comments...");
+            
+            for (com.google.cloud.firestore.QueryDocumentSnapshot noteDoc : firebaseNotes) {
                 try {
                     String firebaseNoteId = noteDoc.getId();
                     
-                    // Find the corresponding note in our database
-                    noteRepository.findAll().forEach(note -> {
+                    // Get note content for matching
+                    String noteContent = noteDoc.getString("note");
+                    if (noteContent == null) noteContent = noteDoc.getString("content");
+                    
+                    Note dbNote = contentToNoteMap.get(noteContent);
+                    if (dbNote == null) {
+                        skippedCount++;
+                        continue; // Note not in database
+                    }
+                    
+                    // Fetch comments subcollection
+                    java.util.List<com.google.cloud.firestore.QueryDocumentSnapshot> commentDocs = 
+                        db.collection("notes").document(firebaseNoteId)
+                            .collection("comments").get().get().getDocuments();
+                    
+                    if (commentDocs.isEmpty()) continue;
+                    
+                    for (com.google.cloud.firestore.QueryDocumentSnapshot commentDoc : commentDocs) {
                         try {
-                            // Check if this note came from Firebase (has matching data)
-                            String noteContent = noteDoc.getString("note");
-                            if (noteContent == null) noteContent = noteDoc.getString("content");
+                            String text = commentDoc.getString("text");
+                            if (text == null) text = commentDoc.getString("content");
+                            if (text == null || text.isEmpty()) continue;
                             
-                            if (noteContent != null && noteContent.equals(note.getContent())) {
-                                // Load comments subcollection
-                                db.collection("notes").document(firebaseNoteId)
-                                    .collection("comments").get().get().getDocuments().forEach(commentDoc -> {
-                                    try {
-                                        com.visiboard.backend.model.Comment comment = new com.visiboard.backend.model.Comment();
-                                        
-                                        // Map "text" field to content
-                                        String text = commentDoc.getString("text");
-                                        if (text == null) text = commentDoc.getString("content");
-                                        comment.setContent(text);
-                                        
-                                        // Link to note
-                                        comment.setNote(note);
-                                        
-                                        // Map user
-                                        String userId = commentDoc.getString("userId");
-                                        if (userId != null) {
-                                            User user = userRepository.findByFirebaseUid(userId);
-                                            if (user == null) {
-                                                // Create temporary user from userName
-                                                user = new User();
-                                                user.setFirebaseUid(userId);
-                                                user.setName(commentDoc.getString("userName"));
-                                                user.setEmail("temp_" + userId + "@user.com");
-                                                userRepository.save(user);
-                                            }
-                                            comment.setUser(user);
-                                        }
-                                        
-                                        // Handle timestamp
-                                        Object commentTimestampObj = commentDoc.get("timestamp");
-                                        if (commentTimestampObj instanceof com.google.cloud.Timestamp) {
-                                            comment.setCreatedAt(java.time.LocalDateTime.ofInstant(
-                                                ((com.google.cloud.Timestamp) commentTimestampObj).toDate().toInstant(), 
-                                                java.time.ZoneId.systemDefault()
-                                            ));
-                                        } else if (commentTimestampObj instanceof Long) {
-                                            comment.setCreatedAt(java.time.LocalDateTime.ofInstant(
-                                                java.time.Instant.ofEpochMilli((Long) commentTimestampObj), 
-                                                java.time.ZoneId.systemDefault()
-                                            ));
-                                        } else {
-                                            comment.setCreatedAt(java.time.LocalDateTime.now());
-                                        }
-                                        
-                                        if (comment.getUser() != null) {
-                                            commentRepository.save(comment);
-                                            System.out.println("Saved comment for note: " + note.getId());
-                                        }
-                                    } catch (Exception e) {
-                                        System.err.println("Error syncing comment " + commentDoc.getId() + ": " + e.getMessage());
+                            // Check if already exists
+                            String commentKey = dbNote.getId() + "|" + text;
+                            if (existingComments.contains(commentKey)) {
+                                continue; // Skip duplicate
+                            }
+                            
+                            com.visiboard.backend.model.Comment comment = new com.visiboard.backend.model.Comment();
+                            comment.setContent(text);
+                            comment.setNote(dbNote);
+                            
+                            // Get or create user
+                            String userId = commentDoc.getString("userId");
+                            if (userId != null) {
+                                User user = userCache.get(userId);
+                                if (user == null) {
+                                    user = userRepository.findByFirebaseUid(userId);
+                                    if (user == null) {
+                                        user = new User();
+                                        user.setFirebaseUid(userId);
+                                        user.setName(commentDoc.getString("userName"));
+                                        if (user.getName() == null) user.setName("Unknown");
+                                        user.setEmail("temp_" + userId + "@user.com");
+                                        user = userRepository.save(user);
                                     }
-                                });
+                                    userCache.put(userId, user);
+                                }
+                                comment.setUser(user);
+                            }
+                            
+                            // Parse timestamp
+                            Object timestampObj = commentDoc.get("timestamp");
+                            if (timestampObj instanceof com.google.cloud.Timestamp) {
+                                comment.setCreatedAt(java.time.LocalDateTime.ofInstant(
+                                    ((com.google.cloud.Timestamp) timestampObj).toDate().toInstant(), 
+                                    java.time.ZoneId.systemDefault()
+                                ));
+                            } else if (timestampObj instanceof Long) {
+                                comment.setCreatedAt(java.time.LocalDateTime.ofInstant(
+                                    java.time.Instant.ofEpochMilli((Long) timestampObj), 
+                                    java.time.ZoneId.systemDefault()
+                                ));
+                            }
+                            
+                            if (comment.getUser() != null) {
+                                commentRepository.save(comment);
+                                existingComments.add(commentKey);
+                                syncedCount++;
                             }
                         } catch (Exception e) {
-                            System.err.println("Error processing note comments: " + e.getMessage());
+                            System.err.println("Error syncing comment: " + e.getMessage());
                         }
-                    });
+                    }
                 } catch (Exception e) {
-                    System.err.println("Error loading comments for note " + noteDoc.getId());
+                    System.err.println("Error processing note comments: " + e.getMessage());
                 }
-            });
-            System.out.println("Comments synced from Firebase");
+            }
+            
+            long duration = System.currentTimeMillis() - startTime;
+            System.out.println("Comment sync complete: " + syncedCount + " synced, " + 
+                             skippedCount + " notes skipped in " + duration + "ms");
         } catch (Exception e) {
+            System.err.println("Fatal error syncing comments: " + e.getMessage());
             e.printStackTrace();
         }
     }

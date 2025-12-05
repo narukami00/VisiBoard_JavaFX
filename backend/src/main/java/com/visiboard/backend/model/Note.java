@@ -21,6 +21,10 @@ public class Note {
     @JsonIgnore
     private java.util.List<Comment> comments = new java.util.ArrayList<>();
 
+    @OneToMany(mappedBy = "note", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
+    private java.util.List<NoteLike> likes = new java.util.ArrayList<>();
+
     @Column(columnDefinition = "TEXT")
     private String content;
 
@@ -51,6 +55,9 @@ public class Note {
 
     public java.util.List<Comment> getComments() { return comments; }
     public void setComments(java.util.List<Comment> comments) { this.comments = comments; }
+
+    public java.util.List<NoteLike> getLikes() { return likes; }
+    public void setLikes(java.util.List<NoteLike> likes) { this.likes = likes; }
 
     public String getContent() { return content; }
     public void setContent(String content) { this.content = content; }

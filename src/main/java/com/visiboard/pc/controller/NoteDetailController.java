@@ -78,7 +78,7 @@ public class NoteDetailController {
                 .thenAccept(image -> {
                     javafx.application.Platform.runLater(() -> {
                         if (image != null) {
-                            userAvatar.setImage(image);
+                            cropAndSetImage(userAvatar, image);
                         } else {
                             // Fallback to generated avatar
                             String fallbackUrl = "https://ui-avatars.com/api/?name=" + 
@@ -88,7 +88,7 @@ public class NoteDetailController {
                                 .thenAccept(fallbackImage -> {
                                     javafx.application.Platform.runLater(() -> {
                                         if (fallbackImage != null) {
-                                            userAvatar.setImage(fallbackImage);
+                                            cropAndSetImage(userAvatar, fallbackImage);
                                         }
                                     });
                                 });
@@ -122,14 +122,21 @@ public class NoteDetailController {
         contentLabel.setText(note.getContent());
         timestampLabel.setVisible(false);
         
-        // Update like button
-        if (note.getLikesCount() > 0) {
-            likesCountLabel.setText(note.getLikesCount() + " likes");
+        // Update like button based on current user's like status
+        String currentUserEmail = UserSession.getInstance().getUserEmail();
+        boolean isLikedByCurrentUser = note.getLikedByUsers() != null && 
+                                       currentUserEmail != null &&
+                                       note.getLikedByUsers().contains(currentUserEmail);
+        
+        likesCountLabel.setText(note.getLikesCount() + " likes");
+        
+        if (isLikedByCurrentUser) {
             likeButton.setText("Liked");
             likeButton.getStyleClass().remove("modern-button");
-            likeButton.getStyleClass().add("modern-button-liked");
+            if (!likeButton.getStyleClass().contains("modern-button-liked")) {
+                likeButton.getStyleClass().add("modern-button-liked");
+            }
         } else {
-            likesCountLabel.setText("0 likes");
             likeButton.setText("Like");
             likeButton.getStyleClass().remove("modern-button-liked");
             if (!likeButton.getStyleClass().contains("modern-button")) {
@@ -208,7 +215,7 @@ public class NoteDetailController {
                 .thenAccept(image -> {
                     javafx.application.Platform.runLater(() -> {
                         if (image != null) {
-                            avatar.setImage(image);
+                            cropAndSetImage(avatar, image);
                         } else {
                             setDefaultAvatar(avatar, finalUserName);
                         }
@@ -236,6 +243,22 @@ public class NoteDetailController {
         commentsContainer.getChildren().add(commentBox);
     }
     
+    private void cropAndSetImage(ImageView imageView, javafx.scene.image.Image image) {
+        if (image == null) return;
+        
+        double width = image.getWidth();
+        double height = image.getHeight();
+        
+        // Calculate crop dimensions for center square
+        double size = Math.min(width, height);
+        double x = (width - size) / 2.0;
+        double y = (height - size) / 2.0;
+        
+        // Set viewport to show center square
+        imageView.setViewport(new javafx.geometry.Rectangle2D(x, y, size, size));
+        imageView.setImage(image);
+    }
+    
     private void setDefaultAvatar(ImageView avatar, String name) {
         String initial = (name != null && !name.isEmpty()) ? name.substring(0, 1).toUpperCase() : "?";
         String url = "https://ui-avatars.com/api/?name=" + initial + "&background=e94560&color=fff&size=64";
@@ -243,7 +266,7 @@ public class NoteDetailController {
             .getImage(url)
             .thenAccept(image -> {
                 if (image != null) {
-                    javafx.application.Platform.runLater(() -> avatar.setImage(image));
+                    javafx.application.Platform.runLater(() -> cropAndSetImage(avatar, image));
                 }
             });
     }
