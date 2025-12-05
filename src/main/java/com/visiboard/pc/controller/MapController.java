@@ -73,7 +73,7 @@ public class MapController {
     }
     
     public void openNoteDetail(String noteId) {
-        System.out.println("JavaConnector: Open Note " + noteId);
+        System.out.println("[Map] JavaConnector: Open Note " + noteId);
         Platform.runLater(() -> {
             try {
                 javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(getClass().getResource("/com/visiboard/pc/view/note_detail_view.fxml"));
@@ -83,7 +83,7 @@ public class MapController {
                 controller.setNote(noteId, apiService);
                 
                 controller.setOnNoteDeleted(() -> {
-                    System.out.println("[Map] Refreshing after delete");
+                    System.out.println("[Map] Note deleted, refreshing map");
                     WebEngine webEngine = mapWebView.getEngine();
                     loadNotesOnMap(webEngine);
                 });
@@ -92,8 +92,17 @@ public class MapController {
                 stage.setTitle("Note Details");
                 stage.setScene(new javafx.scene.Scene(root));
                 stage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
+                
+                // Refresh map when window closes (in case of updates)
+                stage.setOnHidden(event -> {
+                    System.out.println("[Map] Note detail window closed, refreshing");
+                    WebEngine webEngine = mapWebView.getEngine();
+                    loadNotesOnMap(webEngine);
+                });
+                
                 stage.show();
             } catch (Exception e) {
+                System.err.println("[Map] Error opening note detail: " + e.getMessage());
                 e.printStackTrace();
             }
         });
@@ -130,6 +139,7 @@ public class MapController {
 
     @FXML
     private void refreshMap() {
+        System.out.println("[Map] Manual refresh triggered");
         WebEngine webEngine = mapWebView.getEngine();
         loadNotesOnMap(webEngine);
     }
@@ -155,16 +165,30 @@ public class MapController {
     }
 
     private void loadNotesOnMap(WebEngine webEngine) {
+        System.out.println("[Map] Loading notes...");
         apiService.getNotes().thenAccept(notes -> {
             try {
+                System.out.println("[Map] Received " + (notes != null ? notes.size() : 0) + " notes from API");
                 String notesJson = objectMapper.writeValueAsString(notes);
+                System.out.println("[Map] Notes JSON: " + notesJson);
                 Platform.runLater(() -> {
-                    String script = "var notesData = " + notesJson + "; addNotes(JSON.stringify(notesData));";
-                    webEngine.executeScript(script);
+                    try {
+                        JSObject window = (JSObject) webEngine.executeScript("window");
+                        window.call("addNotes", notesJson);
+                        System.out.println("[Map] Executed addNotes script via JSObject.call");
+                    } catch (Exception e) {
+                        System.err.println("[Map] Error executing script: " + e.getMessage());
+                        e.printStackTrace();
+                    }
                 });
             } catch (Exception e) {
+                System.err.println("[Map] Error serializing notes: " + e.getMessage());
                 e.printStackTrace();
             }
+        }).exceptionally(e -> {
+            System.err.println("[Map] Error fetching notes: " + e.getMessage());
+            e.printStackTrace();
+            return null;
         });
     }
 }

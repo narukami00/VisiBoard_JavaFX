@@ -69,13 +69,17 @@ public class SyncService {
             e.printStackTrace();
         }
     }
-    
-    public void syncAllFromFirebase() {
-        System.out.println("Clearing local database...");
-        // Delete child tables first to avoid foreign key constraints
-        noteLikeRepository.deleteAll();
-        commentRepository.deleteAll();
-        notificationRepository.deleteAll();
+
+    public void deleteNoteFromFirebase(String noteId) {
+        Firestore db = FirestoreClient.getFirestore();
+        try {
+            db.collection("notes").document(noteId).delete().get();
+        } catch (InterruptedException | ExecutionException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void syncFromFirebase() {
         messageRepository.deleteAll();
         userFollowRepository.deleteAll();
         noteRepository.deleteAll();
@@ -171,6 +175,36 @@ public class SyncService {
                 }
             });
             System.out.println("Notes synced from Firebase");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        // Sync Comments
+        try {
+            db.collection("comments").get().get().getDocuments().forEach(document -> {
+                try {
+                    com.visiboard.backend.model.Comment comment = new com.visiboard.backend.model.Comment();
+                    comment.setContent(document.getString("content"));
+                    
+                    String noteId = document.getString("noteId");
+                    if (noteId != null) {
+                        noteRepository.findById(java.util.UUID.fromString(noteId)).ifPresent(comment::setNote);
+                    }
+                    
+                    String userId = document.getString("userId");
+                    if (userId != null) {
+                        User user = userRepository.findByFirebaseUid(userId);
+                        if (user != null) comment.setUser(user);
+                    }
+                    
+                    if (comment.getNote() != null && comment.getUser() != null) {
+                        commentRepository.save(comment);
+                    }
+                } catch (Exception e) {
+                    System.err.println("Error syncing comment " + document.getId());
+                }
+            });
+            System.out.println("Comments synced from Firebase");
         } catch (Exception e) {
             e.printStackTrace();
         }

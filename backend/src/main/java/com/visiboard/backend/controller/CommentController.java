@@ -50,7 +50,13 @@ public class CommentController {
         comment.setUser(user);
         comment.setContent(request.content);
         
-        return commentRepository.save(comment);
+        Comment savedComment = commentRepository.save(comment);
+        
+        // Increment comment count on the note
+        note.setCommentsCount(note.getCommentsCount() + 1);
+        noteRepository.save(note);
+        
+        return savedComment;
     }
 
     public static class CommentRequest {

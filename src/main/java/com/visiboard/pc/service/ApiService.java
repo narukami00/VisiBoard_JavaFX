@@ -154,13 +154,20 @@ public class ApiService {
                 .build();
 
         return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-                .thenApply(HttpResponse::body)
-                .thenApply(body -> {
+                .thenApply(response -> {
+                    System.out.println("GET /comments/note/" + noteId + " Status: " + response.statusCode());
+                    System.out.println("GET /comments/note/" + noteId + " Body: " + response.body());
+                    if (response.statusCode() != 200) {
+                        return Collections.<com.visiboard.pc.model.Comment>emptyList();
+                    }
                     try {
-                        return objectMapper.readValue(body, new TypeReference<List<com.visiboard.pc.model.Comment>>() {});
+                        List<com.visiboard.pc.model.Comment> comments = objectMapper.readValue(response.body(), new TypeReference<List<com.visiboard.pc.model.Comment>>() {});
+                        System.out.println("Parsed " + comments.size() + " comments");
+                        return comments;
                     } catch (Exception e) {
+                        System.err.println("Error parsing comments: " + e.getMessage());
                         e.printStackTrace();
-                        return Collections.emptyList();
+                        return Collections.<com.visiboard.pc.model.Comment>emptyList();
                     }
                 });
     }
@@ -171,6 +178,8 @@ public class ApiService {
             var payload = java.util.Map.of("noteId", noteId, "content", content);
             String json = objectMapper.writeValueAsString(payload);
             
+            System.out.println("POST /comments with noteId: " + noteId + ", content: " + content);
+            
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(BASE_URL + "/comments"))
                     .header("Content-Type", "application/json")
@@ -178,16 +187,23 @@ public class ApiService {
                     .build();
 
             return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-                    .thenApply(HttpResponse::body)
-                    .thenApply(body -> {
+                    .thenApply(response -> {
+                        System.out.println("POST /comments Status: " + response.statusCode());
+                        System.out.println("POST /comments Body: " + response.body());
+                        if (response.statusCode() != 200 && response.statusCode() != 201) {
+                            return null;
+                        }
                         try {
-                            return objectMapper.readValue(body, com.visiboard.pc.model.Comment.class);
+                            return objectMapper.readValue(response.body(), com.visiboard.pc.model.Comment.class);
                         } catch (Exception e) {
+                            System.err.println("Error parsing comment response: " + e.getMessage());
                             e.printStackTrace();
                             return null;
                         }
                     });
         } catch (Exception e) {
+            System.err.println("Error creating comment request: " + e.getMessage());
+            e.printStackTrace();
             return CompletableFuture.failedFuture(e);
         }
     }
@@ -210,13 +226,22 @@ public class ApiService {
     }
 
     public java.util.concurrent.CompletableFuture<Void> deleteNote(String noteId) {
+        System.out.println("DELETE /notes/" + noteId);
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(BASE_URL + "/notes/" + noteId))
                 .DELETE()
                 .build();
 
-        return httpClient.sendAsync(request, HttpResponse.BodyHandlers.discarding())
-                .thenApply(response -> null);
+        return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenApply(response -> {
+                    System.out.println("DELETE /notes/" + noteId + " Status: " + response.statusCode());
+                    if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                        System.out.println("Note deleted successfully");
+                    } else {
+                        System.err.println("Failed to delete note. Response: " + response.body());
+                    }
+                    return null;
+                });
     }
     
     /**

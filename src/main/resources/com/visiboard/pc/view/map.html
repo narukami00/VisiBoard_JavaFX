@@ -30,6 +30,9 @@
     // Initialize Leaflet Map
     var map = L.map('map').setView([40.7128, -74.0060], 16); // NYC default
 
+    // Marker Layer Group for easy clearing
+    var markersLayer = L.layerGroup().addTo(map);
+
     // Tile Layers
     var darkTiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
       attribution: '&copy; OpenStreetMap &copy; CARTO',
@@ -103,10 +106,14 @@
     // Function to add notes with custom floating markers
     function addNotes(notesJson) {
       try {
+        console.log("addNotes called with: " + notesJson);
         const notes = JSON.parse(notesJson);
+        console.log("Parsed notes count: " + notes.length);
         var bounds = [];
 
-        // Clear existing markers if needed (not implemented here for simplicity)
+        // Clear existing markers
+        markersLayer.clearLayers();
+        console.log("Cleared existing markers");
 
         notes.forEach(note => {
           if (note.lat && note.lng) {
@@ -137,7 +144,8 @@
                 iconAnchor: [40, 20] // Approximate center
             });
 
-            var marker = L.marker([note.lat, note.lng], {icon: customIcon}).addTo(map);
+            var marker = L.marker([note.lat, note.lng], {icon: customIcon});
+            marker.addTo(markersLayer);
             
             // Store ID in marker options for easy access
             marker.noteId = note.id;
@@ -157,6 +165,7 @@
           }
         });
 
+        console.log("Added " + notes.length + " markers to map");
         if (bounds.length > 0) {
           map.fitBounds(bounds, { padding: [50, 50] });
         }

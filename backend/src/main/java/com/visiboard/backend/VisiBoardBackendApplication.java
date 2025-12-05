@@ -12,7 +12,7 @@ public class VisiBoardBackendApplication {
     public org.springframework.boot.CommandLineRunner commandLineRunner(com.visiboard.backend.service.SyncService syncService) {
         return args -> {
             System.out.println("Syncing data from Firebase...");
-            syncService.syncAllFromFirebase();
+            syncService.syncFromFirebase();
         };
     }
 

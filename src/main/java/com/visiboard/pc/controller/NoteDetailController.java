@@ -75,7 +75,7 @@ public class NoteDetailController {
                     image = new javafx.scene.image.Image(new java.io.ByteArrayInputStream(imageBytes));
                 } else if (picUrl != null && !picUrl.isEmpty()) {
                     // Regular URL
-                    System.out.println("[Image] Loading from URL for: " + name);
+                    System.out.println("[Image] Loading from URL: " + picUrl); // Log ACTUAL URL
                     image = new javafx.scene.image.Image(picUrl, true);
                 } else {
                     // Use generated avatar
@@ -86,9 +86,12 @@ public class NoteDetailController {
                 
                 image.errorProperty().addListener((obs, oldError, newError) -> {
                     if (newError) {
-                        System.out.println("[Image] Error loading, using fallback for: " + finalName);
-                        String fallbackUrl = "https://ui-avatars.com/api/?name=\" + finalName.substring(0, 1) + \"&background=e94560&color=fff&size=48";
-                        userAvatar.setImage(new javafx.scene.image.Image(fallbackUrl, true));
+                        System.out.println("[Image] Error loading image, using fallback for: " + finalName);
+                        // Force fallback on FX thread
+                        javafx.application.Platform.runLater(() -> {
+                            String fallbackUrl = "https://ui-avatars.com/api/?name=" + finalName.substring(0, 1) + "&background=e94560&color=fff&size=48";
+                            userAvatar.setImage(new javafx.scene.image.Image(fallbackUrl, true));
+                        });
                     }
                 });
                 userAvatar.setImage(image);
@@ -188,18 +191,6 @@ public class NoteDetailController {
         Circle clip = new Circle(16, 16, 16);
         avatar.setClip(clip);
         
-        if (comment.getUser() != null && comment.getUser().getProfilePicUrl() != null) {
-            try {
-                avatar.setImage(new javafx.scene.image.Image(comment.getUser().getProfilePicUrl(), true));
-            } catch (Exception e) {
-                setDefaultAvatar(avatar, comment.getUser().getName());
-            }
-        } else {
-            setDefaultAvatar(avatar, comment.getUser() != null ? comment.getUser().getName() : "?");
-        }
-        
-        VBox contentBox = new VBox(4);
-        
         String userName = "Anonymous";
         if (comment.getUser() != null) {
             if (comment.getUser().getName() != null && !comment.getUser().getName().isEmpty()) {
@@ -208,6 +199,37 @@ public class NoteDetailController {
                 userName = comment.getUser().getEmail().split("@")[0];
             }
         }
+        
+        if (comment.getUser() != null && comment.getUser().getProfilePicUrl() != null) {
+            try {
+                String picUrl = comment.getUser().getProfilePicUrl();
+                javafx.scene.image.Image image;
+                
+                if (picUrl.startsWith("data:image/")) {
+                    // Base64 data URI
+                    String base64Data = picUrl.substring(picUrl.indexOf(",") + 1);
+                    byte[] imageBytes = java.util.Base64.getDecoder().decode(base64Data);
+                    image = new javafx.scene.image.Image(new java.io.ByteArrayInputStream(imageBytes));
+                } else {
+                    // Regular URL
+                    image = new javafx.scene.image.Image(picUrl, true);
+                }
+                
+                final String finalUserName = userName;
+                image.errorProperty().addListener((obs, oldError, newError) -> {
+                    if (newError) {
+                        javafx.application.Platform.runLater(() -> setDefaultAvatar(avatar, finalUserName));
+                    }
+                });
+                avatar.setImage(image);
+            } catch (Exception e) {
+                setDefaultAvatar(avatar, userName);
+            }
+        } else {
+            setDefaultAvatar(avatar, userName);
+        }
+        
+        VBox contentBox = new VBox(4);
         
         Label nameLabel = new Label(userName);
         nameLabel.setStyle("-fx-font-weight: bold;");
@@ -243,13 +265,28 @@ public class NoteDetailController {
         String text = commentInput.getText();
         if (text == null || text.trim().isEmpty() || note == null) return;
         
+        System.out.println("[Comment] Posting comment for note: " + note.getId());
         apiService.postComment(note.getId().toString(), text.trim()).thenAccept(newComment -> {
             if (newComment != null) {
+                System.out.println("[Comment] Posted successfully");
                 javafx.application.Platform.runLater(() -> {
                     commentInput.clear();
-                    loadComments();
+                    // Refresh note data to get updated comment count
+                    apiService.getNoteById(note.getId().toString()).thenAccept(updatedNote -> {
+                        if (updatedNote != null) {
+                            note = updatedNote;
+                            javafx.application.Platform.runLater(() -> {
+                                updateUI();
+                                loadComments();
+                            });
+                        }
+                    });
                 });
             }
+        }).exceptionally(e -> {
+            System.err.println("[Comment] Error posting: " + e.getMessage());
+            e.printStackTrace();
+            return null;
         });
     }
 

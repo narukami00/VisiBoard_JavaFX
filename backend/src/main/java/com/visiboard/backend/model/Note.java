@@ -17,6 +17,10 @@ public class Note {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
+    @OneToMany(mappedBy = "note", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
+    private java.util.List<Comment> comments = new java.util.ArrayList<>();
+
     @Column(columnDefinition = "TEXT")
     private String content;
 
@@ -44,6 +48,9 @@ public class Note {
 
     public User getUser() { return user; }
     public void setUser(User user) { this.user = user; }
+
+    public java.util.List<Comment> getComments() { return comments; }
+    public void setComments(java.util.List<Comment> comments) { this.comments = comments; }
 
     public String getContent() { return content; }
     public void setContent(String content) { this.content = content; }

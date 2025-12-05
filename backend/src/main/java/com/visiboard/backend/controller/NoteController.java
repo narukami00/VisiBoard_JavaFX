@@ -75,8 +75,13 @@ public class NoteController {
                 .orElse(org.springframework.http.ResponseEntity.notFound().build());
     }
     @DeleteMapping("/{id}")
-    public void deleteNote(@PathVariable java.util.UUID id) {
+    public org.springframework.http.ResponseEntity<Void> deleteNote(@PathVariable java.util.UUID id) {
+        if (!noteRepository.existsById(id)) {
+            return org.springframework.http.ResponseEntity.notFound().build();
+        }
         noteRepository.deleteById(id);
+        syncService.deleteNoteFromFirebase(id.toString());
+        return org.springframework.http.ResponseEntity.ok().build();
     }
 
     @PostMapping("/{id}/like")

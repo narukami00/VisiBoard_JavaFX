@@ -14,6 +14,7 @@ public class Comment {
     @ManyToOne
     @JoinColumn(name = "note_id", nullable = false)
     @org.hibernate.annotations.OnDelete(action = org.hibernate.annotations.OnDeleteAction.CASCADE)
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private Note note;
 
     @ManyToOne
