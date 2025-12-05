@@ -22,9 +22,7 @@ public class SyncService {
     private final com.visiboard.backend.repository.NotificationRepository notificationRepository;
     private final com.visiboard.backend.repository.MessageRepository messageRepository;
     private final com.visiboard.backend.repository.UserFollowRepository userFollowRepository;
-    
-    // Track deleted note contents to prevent re-import from Firebase
-    private final java.util.Set<String> deletedNoteContents = java.util.Collections.synchronizedSet(new java.util.HashSet<>());
+    private final com.visiboard.backend.repository.DeletedNoteRepository deletedNoteRepository;
 
     public SyncService(UserRepository userRepository,
                        NoteRepository noteRepository,
@@ -32,7 +30,8 @@ public class SyncService {
                        com.visiboard.backend.repository.CommentRepository commentRepository,
                        com.visiboard.backend.repository.NotificationRepository notificationRepository,
                        com.visiboard.backend.repository.MessageRepository messageRepository,
-                       com.visiboard.backend.repository.UserFollowRepository userFollowRepository) {
+                       com.visiboard.backend.repository.UserFollowRepository userFollowRepository,
+                       com.visiboard.backend.repository.DeletedNoteRepository deletedNoteRepository) {
         this.userRepository = userRepository;
         this.noteRepository = noteRepository;
         this.noteLikeRepository = noteLikeRepository;
@@ -40,6 +39,7 @@ public class SyncService {
         this.notificationRepository = notificationRepository;
         this.messageRepository = messageRepository;
         this.userFollowRepository = userFollowRepository;
+        this.deletedNoteRepository = deletedNoteRepository;
     }
 
     public void syncUserToFirebase(User user) {
@@ -60,15 +60,25 @@ public class SyncService {
     public void syncNoteToFirebase(Note note) {
         Firestore db = FirestoreClient.getFirestore();
         Map<String, Object> noteData = new HashMap<>();
-        noteData.put("content", note.getContent());
-        noteData.put("latitude", note.getLat());
+        noteData.put("note", note.getContent()); // Use "note" field like Android
+        noteData.put("content", note.getContent()); // Also add "content" for compatibility
+        noteData.put("lat", note.getLat());
+        noteData.put("lon", note.getLng());
+        noteData.put("latitude", note.getLat()); // Also add full names
         noteData.put("longitude", note.getLng());
         noteData.put("userId", note.getUser().getFirebaseUid());
-        // Add other fields
+        noteData.put("userName", note.getUser().getName());
+        noteData.put("likeCount", note.getLikesCount());
+        noteData.put("commentsCount", note.getCommentsCount());
+        noteData.put("timestamp", com.google.cloud.Timestamp.now());
 
         try {
-            db.collection("notes").document(note.getId().toString()).set(noteData).get();
+            // Use UUID as document ID for easier tracking
+            String docId = note.getId().toString();
+            db.collection("notes").document(docId).set(noteData).get();
+            System.out.println("Synced note to Firebase with ID: " + docId);
         } catch (InterruptedException | ExecutionException e) {
+            System.err.println("Failed to sync note to Firebase: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -76,52 +86,71 @@ public class SyncService {
     public void deleteNoteFromFirebase(String noteId) {
         Firestore db = FirestoreClient.getFirestore();
         try {
-            // Find the note in our database to get its content
-            java.util.Optional<Note> noteOpt = noteRepository.findById(java.util.UUID.fromString(noteId));
-            if (!noteOpt.isPresent()) {
-                System.out.println("Note not found in database, cannot delete from Firebase: " + noteId);
-                return;
-            }
+            System.out.println("Deleting note from Firebase: " + noteId);
             
-            Note note = noteOpt.get();
-            String noteContent = note.getContent();
-            
-            // Track this content as deleted to prevent re-import
-            if (noteContent != null) {
-                deletedNoteContents.add(noteContent);
-                System.out.println("Tracking deleted note content to prevent re-import");
-            }
-            
-            // Search Firebase for notes with matching content
-            java.util.List<com.google.cloud.firestore.QueryDocumentSnapshot> firebaseNotes = 
-                db.collection("notes").get().get().getDocuments();
-            
-            for (com.google.cloud.firestore.QueryDocumentSnapshot doc : firebaseNotes) {
-                String fbContent = doc.getString("note");
-                if (fbContent == null) fbContent = doc.getString("content");
+            // Try direct delete first (if note was created by PC, ID matches)
+            try {
+                db.collection("notes").document(noteId).delete().get();
+                System.out.println("Directly deleted Firebase document: " + noteId);
                 
-                if (noteContent != null && noteContent.equals(fbContent)) {
-                    // Found matching note - delete it
-                    db.collection("notes").document(doc.getId()).delete().get();
-                    System.out.println("Deleted note from Firebase: " + doc.getId());
-                    return;
+                // Track as deleted
+                com.visiboard.backend.model.DeletedNote deletedNote = new com.visiboard.backend.model.DeletedNote();
+                deletedNote.setFirebaseDocId(noteId);
+                deletedNote.setContent("UUID:" + noteId); // Marker for UUID-based notes
+                deletedNoteRepository.save(deletedNote);
+                return;
+            } catch (Exception e) {
+                System.out.println("Direct delete failed, searching by content...");
+            }
+            
+            // If direct delete failed, search by content (for Android-created notes)
+            java.util.Optional<Note> noteOpt = noteRepository.findById(java.util.UUID.fromString(noteId));
+            if (noteOpt.isPresent()) {
+                Note note = noteOpt.get();
+                String noteContent = note.getContent();
+                
+                // Search Firebase for matching content
+                java.util.List<com.google.cloud.firestore.QueryDocumentSnapshot> firebaseNotes = 
+                    db.collection("notes").get().get().getDocuments();
+                
+                for (com.google.cloud.firestore.QueryDocumentSnapshot doc : firebaseNotes) {
+                    String fbContent = doc.getString("note");
+                    if (fbContent == null) fbContent = doc.getString("content");
+                    
+                    if (noteContent != null && noteContent.equals(fbContent)) {
+                        // Found matching note - delete it
+                        db.collection("notes").document(doc.getId()).delete().get();
+                        System.out.println("Deleted note from Firebase by content match: " + doc.getId());
+                        
+                        // Track as deleted
+                        com.visiboard.backend.model.DeletedNote deletedNote = 
+                            new com.visiboard.backend.model.DeletedNote(noteContent, doc.getId());
+                        deletedNoteRepository.save(deletedNote);
+                        System.out.println("Tracked deleted note to prevent re-import");
+                        return;
+                    }
                 }
             }
             
-            System.out.println("Note not found in Firebase (already deleted or never synced): " + noteId);
-        } catch (InterruptedException | ExecutionException e) {
+            System.out.println("Note not found in Firebase (already deleted or never synced)");
+        } catch (Exception e) {
             System.err.println("Error deleting note from Firebase: " + e.getMessage());
             e.printStackTrace();
         }
     }
 
     public void syncFromFirebase() {
+        System.out.println("Starting Firebase sync (preserving deleted notes tracking)...");
         try {
+            // Clear data but keep deleted notes tracking
+            commentRepository.deleteAll();
+            noteLikeRepository.deleteAll();
             messageRepository.deleteAll();
             userFollowRepository.deleteAll();
             noteRepository.deleteAll();
             userRepository.deleteAll();
-            System.out.println("Local database cleared successfully.");
+            // DO NOT clear deletedNoteRepository - we need that!
+            System.out.println("Local database cleared (preserved deleted notes).");
         } catch (Exception e) {
             System.err.println("Error clearing local database: " + e.getMessage());
             e.printStackTrace();
@@ -169,16 +198,22 @@ public class SyncService {
                 try {
                     Note note = new Note();
                     
+                    String firebaseDocId = document.getId();
+                    
+                    // Skip if this Firebase document was deleted
+                    if (deletedNoteRepository.existsByFirebaseDocId(firebaseDocId)) {
+                        return; // Skip deleted note
+                    }
+                    
                     // Content Mapping
                     String content = document.getString("note"); // Android uses "note"
                     if (content == null) content = document.getString("content");
                     if (content == null) content = document.getString("text");
                     if (content == null) content = "No Content";
                     
-                    // Skip if this note was deleted
-                    if (deletedNoteContents.contains(content)) {
-                        System.out.println("Skipping deleted note: " + content.substring(0, Math.min(50, content.length())) + "...");
-                        return;
+                    // Also skip if content was deleted
+                    if (deletedNoteRepository.existsByContent(content)) {
+                        return; // Skip deleted note
                     }
                     
                     note.setContent(content);
