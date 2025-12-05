@@ -22,7 +22,6 @@ public class SyncService {
     private final com.visiboard.backend.repository.NotificationRepository notificationRepository;
     private final com.visiboard.backend.repository.MessageRepository messageRepository;
     private final com.visiboard.backend.repository.UserFollowRepository userFollowRepository;
-    private final com.visiboard.backend.repository.DeletedNoteRepository deletedNoteRepository;
 
     public SyncService(UserRepository userRepository,
                        NoteRepository noteRepository,
@@ -30,8 +29,7 @@ public class SyncService {
                        com.visiboard.backend.repository.CommentRepository commentRepository,
                        com.visiboard.backend.repository.NotificationRepository notificationRepository,
                        com.visiboard.backend.repository.MessageRepository messageRepository,
-                       com.visiboard.backend.repository.UserFollowRepository userFollowRepository,
-                       com.visiboard.backend.repository.DeletedNoteRepository deletedNoteRepository) {
+                       com.visiboard.backend.repository.UserFollowRepository userFollowRepository) {
         this.userRepository = userRepository;
         this.noteRepository = noteRepository;
         this.noteLikeRepository = noteLikeRepository;
@@ -39,7 +37,6 @@ public class SyncService {
         this.notificationRepository = notificationRepository;
         this.messageRepository = messageRepository;
         this.userFollowRepository = userFollowRepository;
-        this.deletedNoteRepository = deletedNoteRepository;
     }
 
     public void syncUserToFirebase(User user) {
@@ -66,21 +63,20 @@ public class SyncService {
             }
             
             Map<String, Object> noteData = new HashMap<>();
-            noteData.put("note", note.getContent()); // Use "note" field like Android
-            noteData.put("content", note.getContent()); // Also add "content" for compatibility
+            // Only the fields that Android uses
+            noteData.put("note", note.getContent());
             noteData.put("lat", note.getLat());
             noteData.put("lon", note.getLng());
-            noteData.put("latitude", note.getLat()); // Also add full names
-            noteData.put("longitude", note.getLng());
+            noteData.put("location", new com.google.cloud.firestore.GeoPoint(note.getLat(), note.getLng()));
             noteData.put("userId", note.getUser().getFirebaseUid());
             noteData.put("userName", note.getUser().getName());
             noteData.put("likeCount", note.getLikesCount());
+            noteData.put("likedBy", note.getLikedByUsers() != null ? note.getLikedByUsers() : new java.util.ArrayList<>());
             noteData.put("commentsCount", note.getCommentsCount());
             noteData.put("timestamp", com.google.cloud.Timestamp.now());
 
-            // Use UUID as document ID for easier tracking
             String docId = note.getId().toString();
-            System.out.println("[Firebase] Syncing note to Firebase with ID: " + docId);
+            System.out.println("[Firebase] Syncing note with fields: note, lat, lon, location, userId, userName, likeCount, likedBy, commentsCount, timestamp");
             db.collection("notes").document(docId).set(noteData).get();
             System.out.println("[Firebase] ✓ Successfully synced note to Firebase");
         } catch (Exception e) {
@@ -101,13 +97,14 @@ public class SyncService {
             String commentId = comment.getId().toString();
             
             Map<String, Object> commentData = new HashMap<>();
+            // Only the exact fields Android uses: id, text, timestamp, userId, userName
+            commentData.put("id", commentId);
             commentData.put("text", comment.getContent());
-            commentData.put("content", comment.getContent());
             commentData.put("userId", comment.getUser().getFirebaseUid());
             commentData.put("userName", comment.getUser().getName());
             commentData.put("timestamp", com.google.cloud.Timestamp.now());
             
-            System.out.println("[Firebase] Syncing comment to Firebase note: " + noteDocId);
+            System.out.println("[Firebase] Syncing comment with fields: id, text, timestamp, userId, userName");
             db.collection("notes").document(noteDocId)
                 .collection("comments").document(commentId).set(commentData).get();
             System.out.println("[Firebase] ✓ Successfully synced comment to Firebase");
@@ -118,57 +115,21 @@ public class SyncService {
     }
 
     public void deleteNoteFromFirebase(String noteId) {
-        Firestore db = FirestoreClient.getFirestore();
         try {
-            System.out.println("Deleting note from Firebase: " + noteId);
-            
-            // Try direct delete first (if note was created by PC, ID matches)
-            try {
-                db.collection("notes").document(noteId).delete().get();
-                System.out.println("Directly deleted Firebase document: " + noteId);
-                
-                // Track as deleted
-                com.visiboard.backend.model.DeletedNote deletedNote = new com.visiboard.backend.model.DeletedNote();
-                deletedNote.setFirebaseDocId(noteId);
-                deletedNote.setContent("UUID:" + noteId); // Marker for UUID-based notes
-                deletedNoteRepository.save(deletedNote);
+            Firestore db = FirestoreClient.getFirestore();
+            if (db == null) {
+                System.err.println("[Firebase] Firebase not initialized! Cannot delete note.");
                 return;
-            } catch (Exception e) {
-                System.out.println("Direct delete failed, searching by content...");
             }
             
-            // If direct delete failed, search by content (for Android-created notes)
-            java.util.Optional<Note> noteOpt = noteRepository.findById(java.util.UUID.fromString(noteId));
-            if (noteOpt.isPresent()) {
-                Note note = noteOpt.get();
-                String noteContent = note.getContent();
-                
-                // Search Firebase for matching content
-                java.util.List<com.google.cloud.firestore.QueryDocumentSnapshot> firebaseNotes = 
-                    db.collection("notes").get().get().getDocuments();
-                
-                for (com.google.cloud.firestore.QueryDocumentSnapshot doc : firebaseNotes) {
-                    String fbContent = doc.getString("note");
-                    if (fbContent == null) fbContent = doc.getString("content");
-                    
-                    if (noteContent != null && noteContent.equals(fbContent)) {
-                        // Found matching note - delete it
-                        db.collection("notes").document(doc.getId()).delete().get();
-                        System.out.println("Deleted note from Firebase by content match: " + doc.getId());
-                        
-                        // Track as deleted
-                        com.visiboard.backend.model.DeletedNote deletedNote = 
-                            new com.visiboard.backend.model.DeletedNote(noteContent, doc.getId());
-                        deletedNoteRepository.save(deletedNote);
-                        System.out.println("Tracked deleted note to prevent re-import");
-                        return;
-                    }
-                }
-            }
+            System.out.println("[Firebase] Deleting note from Firebase: " + noteId);
             
-            System.out.println("Note not found in Firebase (already deleted or never synced)");
+            // Delete the note document and all its subcollections
+            db.collection("notes").document(noteId).delete().get();
+            System.out.println("[Firebase] ✓ Deleted note from Firebase: " + noteId);
+            
         } catch (Exception e) {
-            System.err.println("Error deleting note from Firebase: " + e.getMessage());
+            System.err.println("[Firebase] ✗ Failed to delete note from Firebase: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -193,15 +154,14 @@ public class SyncService {
         }
         
         try {
-            // Clear data but keep deleted notes tracking
+            // Clear all local data - Firebase is the source of truth
             commentRepository.deleteAll();
             noteLikeRepository.deleteAll();
             messageRepository.deleteAll();
             userFollowRepository.deleteAll();
             noteRepository.deleteAll();
             userRepository.deleteAll();
-            // DO NOT clear deletedNoteRepository - we need that!
-            System.out.println("Local database cleared (preserved deleted notes).");
+            System.out.println("Local database cleared.");
         } catch (Exception e) {
             System.err.println("Error clearing local database: " + e.getMessage());
             e.printStackTrace();
@@ -247,23 +207,11 @@ public class SyncService {
                 try {
                     Note note = new Note();
                     
-                    String firebaseDocId = document.getId();
-                    
-                    // Skip if this Firebase document was deleted
-                    if (deletedNoteRepository.existsByFirebaseDocId(firebaseDocId)) {
-                        return; // Skip deleted note
-                    }
-                    
                     // Content Mapping
                     String content = document.getString("note"); // Android uses "note"
                     if (content == null) content = document.getString("content");
                     if (content == null) content = document.getString("text");
                     if (content == null) content = "No Content";
-                    
-                    // Also skip if content was deleted
-                    if (deletedNoteRepository.existsByContent(content)) {
-                        return; // Skip deleted note
-                    }
                     
                     note.setContent(content);
                     
