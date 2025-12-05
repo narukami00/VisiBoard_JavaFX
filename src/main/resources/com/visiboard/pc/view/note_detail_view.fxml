@@ -22,7 +22,7 @@
     <!-- Header Section -->
     <VBox styleClass="header-section" spacing="12">
         <HBox spacing="12" alignment="CENTER_LEFT">
-            <ImageView fx:id="userAvatar" fitWidth="50" fitHeight="50" preserveRatio="true">
+            <ImageView fx:id="userAvatar" fitWidth="50" fitHeight="50" preserveRatio="false">
                 <clip>
                     <Circle radius="25" centerX="25" centerY="25"/>
                 </clip>

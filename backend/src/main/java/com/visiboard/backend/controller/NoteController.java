@@ -30,11 +30,19 @@ public class NoteController {
     }
 
     @PostMapping
-    public Note createNote(@RequestBody Note note) {
-        // For demo/PC, assign to the first found user or a specific one
-        // In production, get ID from SecurityContext
-        com.visiboard.backend.model.User user = userRepository.findAll().stream().findFirst()
-                .orElseThrow(() -> new RuntimeException("No users found! Create a user first."));
+    public Note createNote(@RequestBody Note note, @RequestParam(required = false) String userEmail) {
+        com.visiboard.backend.model.User user;
+        
+        if (userEmail != null && !userEmail.isEmpty()) {
+            System.out.println("Creating note for user: " + userEmail);
+            user = userRepository.findByEmail(userEmail)
+                    .orElseThrow(() -> new RuntimeException("User not found with email: " + userEmail));
+        } else {
+            // Fallback: assign to the first found user
+            System.out.println("No user email provided, using first user");
+            user = userRepository.findAll().stream().findFirst()
+                    .orElseThrow(() -> new RuntimeException("No users found! Create a user first."));
+        }
         
         note.setUser(user);
         

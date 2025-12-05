@@ -124,19 +124,30 @@ public class ApiService {
     }
 
     public java.util.concurrent.CompletableFuture<Note> createNote(Note note) {
+        return createNote(note, null);
+    }
+    
+    public java.util.concurrent.CompletableFuture<Note> createNote(Note note, String userEmail) {
         try {
             String json = objectMapper.writeValueAsString(note);
+            String url = BASE_URL + "/notes";
+            if (userEmail != null && !userEmail.isEmpty()) {
+                url += "?userEmail=" + java.net.URLEncoder.encode(userEmail, "UTF-8");
+            }
+            
+            System.out.println("POST " + url);
+            
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(BASE_URL + "/notes"))
+                    .uri(URI.create(url))
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(json))
                     .build();
 
             return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-                    .thenApply(HttpResponse::body)
-                    .thenApply(body -> {
+                    .thenApply(response -> {
+                        System.out.println("POST /notes Status: " + response.statusCode());
                         try {
-                            return objectMapper.readValue(body, Note.class);
+                            return objectMapper.readValue(response.body(), Note.class);
                         } catch (Exception e) {
                             e.printStackTrace();
                             return null;

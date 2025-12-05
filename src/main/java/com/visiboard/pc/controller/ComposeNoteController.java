@@ -40,10 +40,12 @@ public class ComposeNoteController {
         newNote.setContent(content);
         newNote.setLat(lat);
         newNote.setLng(lng);
-        // TODO: Set current user ID. For now, backend might handle it or we need a session.
-        // For demo, we'll assume backend assigns a default user if missing, or we fetch one.
         
-        apiService.createNote(newNote).thenAccept(note -> {
+        // Set current user email for backend to identify the user
+        String userEmail = com.visiboard.pc.util.UserSession.getInstance().getUserEmail();
+        System.out.println("[ComposeNote] Creating note for user: " + userEmail);
+        
+        apiService.createNote(newNote, userEmail).thenAccept(note -> {
             javafx.application.Platform.runLater(() -> {
                 if (onSuccess != null) onSuccess.run();
                 close();

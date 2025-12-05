@@ -62,7 +62,8 @@ public class ImageCacheService {
             return CompletableFuture.supplyAsync(() -> {
                 try {
                     String base64Data = url.substring(url.indexOf(",") + 1);
-                    byte[] imageBytes = Base64.getDecoder().decode(base64Data);
+                    // Use MimeDecoder to handle newlines and potential whitespace
+                    byte[] imageBytes = Base64.getMimeDecoder().decode(base64Data);
                     return new Image(new ByteArrayInputStream(imageBytes));
                 } catch (Exception e) {
                     System.err.println("[ImageCache] Failed to decode base64 image: " + e.getMessage());
@@ -80,8 +81,9 @@ public class ImageCacheService {
                 try {
                     System.out.println("[ImageCache] Detected raw base64 string (length: " + url.length() + "), attempting to decode...");
                     // Remove any whitespace
+                    // Remove any whitespace just in case, though MimeDecoder handles most
                     String cleanBase64 = url.replaceAll("\\s", "");
-                    byte[] imageBytes = Base64.getDecoder().decode(cleanBase64);
+                    byte[] imageBytes = Base64.getMimeDecoder().decode(cleanBase64);
                     System.out.println("[ImageCache] Successfully decoded " + imageBytes.length + " bytes");
                     return new Image(new ByteArrayInputStream(imageBytes));
                 } catch (Exception e) {

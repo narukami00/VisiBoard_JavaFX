@@ -82,10 +82,11 @@ public class MapController {
                 NoteDetailController controller = loader.getController();
                 controller.setNote(noteId, apiService);
                 
+                final boolean[] needsRefresh = {false};
+                
                 controller.setOnNoteDeleted(() -> {
-                    System.out.println("[Map] Note deleted, refreshing map");
-                    WebEngine webEngine = mapWebView.getEngine();
-                    loadNotesOnMap(webEngine);
+                    System.out.println("[Map] Note deleted, marking for refresh");
+                    needsRefresh[0] = true;
                 });
                 
                 javafx.stage.Stage stage = new javafx.stage.Stage();
@@ -93,11 +94,13 @@ public class MapController {
                 stage.setScene(new javafx.scene.Scene(root));
                 stage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
                 
-                // Refresh map when window closes (in case of updates)
+                // Refresh map only once when window closes if needed
                 stage.setOnHidden(event -> {
-                    System.out.println("[Map] Note detail window closed, refreshing");
-                    WebEngine webEngine = mapWebView.getEngine();
-                    loadNotesOnMap(webEngine);
+                    if (needsRefresh[0]) {
+                        System.out.println("[Map] Refreshing map after changes");
+                        WebEngine webEngine = mapWebView.getEngine();
+                        loadNotesOnMap(webEngine);
+                    }
                 });
                 
                 stage.show();
