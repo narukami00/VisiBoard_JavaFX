@@ -58,27 +58,61 @@ public class SyncService {
     }
 
     public void syncNoteToFirebase(Note note) {
-        Firestore db = FirestoreClient.getFirestore();
-        Map<String, Object> noteData = new HashMap<>();
-        noteData.put("note", note.getContent()); // Use "note" field like Android
-        noteData.put("content", note.getContent()); // Also add "content" for compatibility
-        noteData.put("lat", note.getLat());
-        noteData.put("lon", note.getLng());
-        noteData.put("latitude", note.getLat()); // Also add full names
-        noteData.put("longitude", note.getLng());
-        noteData.put("userId", note.getUser().getFirebaseUid());
-        noteData.put("userName", note.getUser().getName());
-        noteData.put("likeCount", note.getLikesCount());
-        noteData.put("commentsCount", note.getCommentsCount());
-        noteData.put("timestamp", com.google.cloud.Timestamp.now());
-
         try {
+            Firestore db = FirestoreClient.getFirestore();
+            if (db == null) {
+                System.err.println("[Firebase] Firebase not initialized! Cannot sync note.");
+                return;
+            }
+            
+            Map<String, Object> noteData = new HashMap<>();
+            noteData.put("note", note.getContent()); // Use "note" field like Android
+            noteData.put("content", note.getContent()); // Also add "content" for compatibility
+            noteData.put("lat", note.getLat());
+            noteData.put("lon", note.getLng());
+            noteData.put("latitude", note.getLat()); // Also add full names
+            noteData.put("longitude", note.getLng());
+            noteData.put("userId", note.getUser().getFirebaseUid());
+            noteData.put("userName", note.getUser().getName());
+            noteData.put("likeCount", note.getLikesCount());
+            noteData.put("commentsCount", note.getCommentsCount());
+            noteData.put("timestamp", com.google.cloud.Timestamp.now());
+
             // Use UUID as document ID for easier tracking
             String docId = note.getId().toString();
+            System.out.println("[Firebase] Syncing note to Firebase with ID: " + docId);
             db.collection("notes").document(docId).set(noteData).get();
-            System.out.println("Synced note to Firebase with ID: " + docId);
-        } catch (InterruptedException | ExecutionException e) {
-            System.err.println("Failed to sync note to Firebase: " + e.getMessage());
+            System.out.println("[Firebase] ✓ Successfully synced note to Firebase");
+        } catch (Exception e) {
+            System.err.println("[Firebase] ✗ Failed to sync note to Firebase: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    public void syncCommentToFirebase(com.visiboard.backend.model.Comment comment, Note note) {
+        try {
+            Firestore db = FirestoreClient.getFirestore();
+            if (db == null) {
+                System.err.println("[Firebase] Firebase not initialized! Cannot sync comment.");
+                return;
+            }
+            
+            String noteDocId = note.getId().toString();
+            String commentId = comment.getId().toString();
+            
+            Map<String, Object> commentData = new HashMap<>();
+            commentData.put("text", comment.getContent());
+            commentData.put("content", comment.getContent());
+            commentData.put("userId", comment.getUser().getFirebaseUid());
+            commentData.put("userName", comment.getUser().getName());
+            commentData.put("timestamp", com.google.cloud.Timestamp.now());
+            
+            System.out.println("[Firebase] Syncing comment to Firebase note: " + noteDocId);
+            db.collection("notes").document(noteDocId)
+                .collection("comments").document(commentId).set(commentData).get();
+            System.out.println("[Firebase] ✓ Successfully synced comment to Firebase");
+        } catch (Exception e) {
+            System.err.println("[Firebase] ✗ Failed to sync comment to Firebase: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -141,6 +175,23 @@ public class SyncService {
 
     public void syncFromFirebase() {
         System.out.println("Starting Firebase sync (preserving deleted notes tracking)...");
+        
+        // Check Firebase initialization
+        Firestore db;
+        try {
+            db = FirestoreClient.getFirestore();
+            if (db == null) {
+                System.err.println("[Firebase] ✗ Firebase not initialized! Cannot sync.");
+                System.err.println("[Firebase] Please ensure serviceAccountKey.json is in src/main/resources/");
+                return;
+            }
+            System.out.println("[Firebase] ✓ Firebase connection established");
+        } catch (Exception e) {
+            System.err.println("[Firebase] ✗ Firebase error: " + e.getMessage());
+            e.printStackTrace();
+            return;
+        }
+        
         try {
             // Clear data but keep deleted notes tracking
             commentRepository.deleteAll();
@@ -155,8 +206,6 @@ public class SyncService {
             System.err.println("Error clearing local database: " + e.getMessage());
             e.printStackTrace();
         }
-        
-        Firestore db = FirestoreClient.getFirestore();
         
         // Sync Users
         try {

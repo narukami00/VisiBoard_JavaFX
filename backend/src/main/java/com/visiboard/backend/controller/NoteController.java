@@ -117,6 +117,9 @@ public class NoteController {
         
         Note savedNote = noteRepository.save(note);
         
+        // Sync updated like count to Firebase
+        syncService.syncNoteToFirebase(savedNote);
+        
         // Re-populate likedByUsers for response
         java.util.List<String> likers = noteLikeRepository.findByNoteId(savedNote.getId())
                 .stream()

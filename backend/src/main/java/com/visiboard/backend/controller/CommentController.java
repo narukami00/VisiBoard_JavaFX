@@ -18,11 +18,16 @@ public class CommentController {
     private final CommentRepository commentRepository;
     private final NoteRepository noteRepository;
     private final UserRepository userRepository;
+    private final com.visiboard.backend.service.SyncService syncService;
 
-    public CommentController(CommentRepository commentRepository, NoteRepository noteRepository, UserRepository userRepository) {
+    public CommentController(CommentRepository commentRepository, 
+                            NoteRepository noteRepository, 
+                            UserRepository userRepository,
+                            com.visiboard.backend.service.SyncService syncService) {
         this.commentRepository = commentRepository;
         this.noteRepository = noteRepository;
         this.userRepository = userRepository;
+        this.syncService = syncService;
     }
 
     @GetMapping("/note/{noteId}")
@@ -54,7 +59,13 @@ public class CommentController {
         
         // Increment comment count on the note
         note.setCommentsCount(note.getCommentsCount() + 1);
-        noteRepository.save(note);
+        Note updatedNote = noteRepository.save(note);
+        
+        // Sync comment to Firebase
+        syncService.syncCommentToFirebase(savedComment, note);
+        
+        // Update note comment count in Firebase
+        syncService.syncNoteToFirebase(updatedNote);
         
         return savedComment;
     }
