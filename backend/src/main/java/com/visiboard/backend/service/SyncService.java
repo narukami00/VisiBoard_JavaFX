@@ -22,8 +22,11 @@ public class SyncService {
     private final com.visiboard.backend.repository.NotificationRepository notificationRepository;
     private final com.visiboard.backend.repository.MessageRepository messageRepository;
     private final com.visiboard.backend.repository.UserFollowRepository userFollowRepository;
+    
+    // Track deleted note contents to prevent re-import from Firebase
+    private final java.util.Set<String> deletedNoteContents = java.util.Collections.synchronizedSet(new java.util.HashSet<>());
 
-    public SyncService(UserRepository userRepository, 
+    public SyncService(UserRepository userRepository,
                        NoteRepository noteRepository,
                        com.visiboard.backend.repository.NoteLikeRepository noteLikeRepository,
                        com.visiboard.backend.repository.CommentRepository commentRepository,
@@ -73,8 +76,41 @@ public class SyncService {
     public void deleteNoteFromFirebase(String noteId) {
         Firestore db = FirestoreClient.getFirestore();
         try {
-            db.collection("notes").document(noteId).delete().get();
+            // Find the note in our database to get its content
+            java.util.Optional<Note> noteOpt = noteRepository.findById(java.util.UUID.fromString(noteId));
+            if (!noteOpt.isPresent()) {
+                System.out.println("Note not found in database, cannot delete from Firebase: " + noteId);
+                return;
+            }
+            
+            Note note = noteOpt.get();
+            String noteContent = note.getContent();
+            
+            // Track this content as deleted to prevent re-import
+            if (noteContent != null) {
+                deletedNoteContents.add(noteContent);
+                System.out.println("Tracking deleted note content to prevent re-import");
+            }
+            
+            // Search Firebase for notes with matching content
+            java.util.List<com.google.cloud.firestore.QueryDocumentSnapshot> firebaseNotes = 
+                db.collection("notes").get().get().getDocuments();
+            
+            for (com.google.cloud.firestore.QueryDocumentSnapshot doc : firebaseNotes) {
+                String fbContent = doc.getString("note");
+                if (fbContent == null) fbContent = doc.getString("content");
+                
+                if (noteContent != null && noteContent.equals(fbContent)) {
+                    // Found matching note - delete it
+                    db.collection("notes").document(doc.getId()).delete().get();
+                    System.out.println("Deleted note from Firebase: " + doc.getId());
+                    return;
+                }
+            }
+            
+            System.out.println("Note not found in Firebase (already deleted or never synced): " + noteId);
         } catch (InterruptedException | ExecutionException e) {
+            System.err.println("Error deleting note from Firebase: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -138,6 +174,13 @@ public class SyncService {
                     if (content == null) content = document.getString("content");
                     if (content == null) content = document.getString("text");
                     if (content == null) content = "No Content";
+                    
+                    // Skip if this note was deleted
+                    if (deletedNoteContents.contains(content)) {
+                        System.out.println("Skipping deleted note: " + content.substring(0, Math.min(50, content.length())) + "...");
+                        return;
+                    }
+                    
                     note.setContent(content);
                     
                     // Location Mapping
@@ -236,14 +279,8 @@ public class SyncService {
             // Cache users for faster lookups
             java.util.Map<String, User> userCache = new java.util.HashMap<>();
             
-            // Get existing comments to avoid duplicates
-            java.util.Set<String> existingComments = new java.util.HashSet<>();
-            for (com.visiboard.backend.model.Comment c : commentRepository.findAll()) {
-                if (c.getNote() != null && c.getContent() != null) {
-                    existingComments.add(c.getNote().getId() + "|" + c.getContent());
-                }
-            }
-            System.out.println("Found " + existingComments.size() + " existing comments in database");
+            // Track synced comments in this session to avoid duplicates within the same sync
+            java.util.Set<String> syncedComments = new java.util.HashSet<>();
             
             int syncedCount = 0;
             int skippedCount = 0;
@@ -281,10 +318,10 @@ public class SyncService {
                             if (text == null) text = commentDoc.getString("content");
                             if (text == null || text.isEmpty()) continue;
                             
-                            // Check if already exists
+                            // Check if already synced in this session (same note + same text)
                             String commentKey = dbNote.getId() + "|" + text;
-                            if (existingComments.contains(commentKey)) {
-                                continue; // Skip duplicate
+                            if (syncedComments.contains(commentKey)) {
+                                continue; // Skip duplicate within this sync
                             }
                             
                             com.visiboard.backend.model.Comment comment = new com.visiboard.backend.model.Comment();
@@ -326,7 +363,7 @@ public class SyncService {
                             
                             if (comment.getUser() != null) {
                                 commentRepository.save(comment);
-                                existingComments.add(commentKey);
+                                syncedComments.add(commentKey);
                                 syncedCount++;
                             }
                         } catch (Exception e) {
