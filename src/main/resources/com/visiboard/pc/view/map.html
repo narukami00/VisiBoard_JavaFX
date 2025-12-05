@@ -3,9 +3,12 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://cdn.osmbuildings.org/classic/0.2.2b/OSMBuildings-Leaflet.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" 
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" 
+        crossorigin=""/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+          crossorigin=""></script>
   <style>
     html, body, #map {
       width: 100%; height: 100%; margin: 0; padding: 0;
@@ -22,51 +25,97 @@
     .leaflet-container {
         background: #1a1a2e;
     }
+    #error-message {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: #e94560;
+        color: white;
+        padding: 20px;
+        border-radius: 10px;
+        font-family: sans-serif;
+        display: none;
+        z-index: 10000;
+    }
   </style>
 </head>
 <body>
+  <div id="error-message"></div>
   <div id="map"></div>
   <script>
     // Initialize Leaflet Map
-    var map = L.map('map').setView([40.7128, -74.0060], 16); // NYC default
+    var map;
+    var markersLayer;
+    var osmb;
+    var darkTiles;
+    var lightTiles;
 
-    // Marker Layer Group for easy clearing
-    var markersLayer = L.layerGroup().addTo(map);
+    try {
+        if (typeof L === 'undefined') {
+            var msg = "Leaflet (L) is not defined. Check internet connection or CDN URLs.";
+            console.error(msg);
+            document.body.innerHTML = "<h2 style='color:white; text-align:center; padding-top:20px;'>" + msg + "</h2>";
+            throw new Error(msg);
+        }
 
-    // Tile Layers
-    var darkTiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; OpenStreetMap &copy; CARTO',
-      subdomains: 'abcd',
-      maxZoom: 20
-    });
+        map = L.map('map').setView([40.7128, -74.0060], 16); // NYC default
+        console.log("Map initialized");
 
-    var lightTiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; OpenStreetMap &copy; CARTO',
-      subdomains: 'abcd',
-      maxZoom: 20
-    });
+        // Marker Layer Group for easy clearing
+        markersLayer = L.layerGroup().addTo(map);
+        console.log("Markers layer initialized");
 
-    // Add default layer (Light)
-    lightTiles.addTo(map);
+        // Tile Layers
+        darkTiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+          attribution: '&copy; OpenStreetMap &copy; CARTO',
+          subdomains: 'abcd',
+          maxZoom: 20
+        });
 
-    // Add 2.5D Buildings
-    var osmb = new OSMBuildings(map).load('https://{s}.data.osmbuildings.org/0.2/anonymous/tile/{z}/{x}/{y}.json');
-    
-    // Default Style (Light Mode)
-    osmb.style({ color: '#666666', roofColor: '#aaaaaa' });
+        lightTiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+          attribution: '&copy; OpenStreetMap &copy; CARTO',
+          subdomains: 'abcd',
+          maxZoom: 20
+        });
+
+        // Add default layer (Light)
+        lightTiles.addTo(map);
+
+        // Add 2.5D Buildings
+        if (typeof OSMBuildings !== 'undefined') {
+            osmb = new OSMBuildings(map).load('https://{s}.data.osmbuildings.org/0.2/anonymous/tile/{z}/{x}/{y}.json');
+            // Default Style (Light Mode)
+            osmb.style({ color: '#666666', roofColor: '#aaaaaa' });
+        } else {
+            console.warn("OSMBuildings not loaded");
+        }
+    } catch (e) {
+        console.error("Error initializing map: " + e);
+        document.body.innerHTML = "<h2 style='color:red; text-align:center; padding-top:20px;'>Error initializing map: " + e + "</h2>";
+    }
 
     function setTheme(theme) {
+        if (!map) {
+            console.error("Map not initialized");
+            return;
+        }
+        
         if (theme === 'dark') {
             map.removeLayer(lightTiles);
             darkTiles.addTo(map);
             document.getElementById('map').style.backgroundColor = '#1a1a2e';
-            osmb.style({ color: 'rgb(233, 69, 96)', roofColor: 'rgb(233, 69, 96)' });
+            if (osmb) {
+                osmb.style({ color: 'rgb(233, 69, 96)', roofColor: 'rgb(233, 69, 96)' });
+            }
             document.body.style.backgroundColor = '#1a1a2e';
         } else {
             map.removeLayer(darkTiles);
             lightTiles.addTo(map);
             document.getElementById('map').style.backgroundColor = '#ffffff';
-            osmb.style({ color: '#666666', roofColor: '#aaaaaa' });
+            if (osmb) {
+                osmb.style({ color: '#666666', roofColor: '#aaaaaa' });
+            }
             document.body.style.backgroundColor = '#ffffff';
         }
     }
@@ -90,18 +139,20 @@
     }
 
     // Map Click Event
-    map.on('click', function(e) {
-        console.log("Map clicked at " + e.latlng);
-        if (isAddNoteMode) {
-            console.log("Add Note Mode Active. Calling JavaConnector.");
-            // Call Java to open Compose Window
-            if (window.javaConnector) {
-                window.javaConnector.onMapClicked(e.latlng.lat, e.latlng.lng);
-            } else {
-                console.error("JavaConnector not found on map click!");
+    if (map) {
+        map.on('click', function(e) {
+            console.log("Map clicked at " + e.latlng);
+            if (isAddNoteMode) {
+                console.log("Add Note Mode Active. Calling JavaConnector.");
+                // Call Java to open Compose Window
+                if (window.javaConnector) {
+                    window.javaConnector.onMapClicked(e.latlng.lat, e.latlng.lng);
+                } else {
+                    console.error("JavaConnector not found on map click!");
+                }
             }
-        }
-    });
+        });
+    }
 
     // Function to add notes with custom floating markers
     function addNotes(notesJson) {
@@ -112,8 +163,19 @@
         var bounds = [];
 
         // Clear existing markers
-        markersLayer.clearLayers();
-        console.log("Cleared existing markers");
+        if (markersLayer) {
+            markersLayer.clearLayers();
+            console.log("Cleared existing markers");
+        } else {
+            console.error("markersLayer is undefined. Re-initializing...");
+            if (map) {
+                markersLayer = L.layerGroup().addTo(map);
+                console.log("markersLayer re-initialized");
+            } else {
+                console.error("Map is also undefined. Cannot add notes.");
+                return;
+            }
+        }
 
         notes.forEach(note => {
           if (note.lat && note.lng) {

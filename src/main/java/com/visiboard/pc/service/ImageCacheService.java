@@ -71,6 +71,26 @@ public class ImageCacheService {
             });
         }
         
+        // Handle raw base64 strings without the data URI prefix
+        // Check for common image base64 signatures: /9j/ (JPEG), iVBOR (PNG), R0lGOD (GIF)
+        if (!url.startsWith("http://") && !url.startsWith("https://") && 
+            (url.startsWith("/9j/") || url.startsWith("iVBOR") || url.startsWith("R0lGOD") || 
+             (url.length() > 100 && url.matches("^[A-Za-z0-9+/=\\s]+$")))) {
+            return CompletableFuture.supplyAsync(() -> {
+                try {
+                    System.out.println("[ImageCache] Detected raw base64 string (length: " + url.length() + "), attempting to decode...");
+                    // Remove any whitespace
+                    String cleanBase64 = url.replaceAll("\\s", "");
+                    byte[] imageBytes = Base64.getDecoder().decode(cleanBase64);
+                    System.out.println("[ImageCache] Successfully decoded " + imageBytes.length + " bytes");
+                    return new Image(new ByteArrayInputStream(imageBytes));
+                } catch (Exception e) {
+                    System.err.println("[ImageCache] Failed to decode raw base64: " + e.getMessage());
+                    return null;
+                }
+            });
+        }
+        
         return CompletableFuture.supplyAsync(() -> {
             // Try to get from cache first
             Image cachedImage = getFromCache(url);

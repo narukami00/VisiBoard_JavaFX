@@ -109,6 +109,15 @@ public class SyncService {
                 // Try 'profilePic' then 'profilePicUrl'
                 String pic = document.getString("profilePic");
                 if (pic == null) pic = document.getString("profilePicUrl");
+                
+                // If it's a raw base64 string, add the data URI prefix
+                if (pic != null && !pic.startsWith("http") && !pic.startsWith("data:image/")) {
+                    // Detect if it's base64 (starts with common image signatures)
+                    if (pic.startsWith("/9j/") || pic.startsWith("iVBOR") || pic.startsWith("R0lGOD")) {
+                        pic = "data:image/jpeg;base64," + pic;
+                    }
+                }
+                
                 user.setProfilePicUrl(pic);
                 
                 userRepository.save(user);
@@ -185,7 +194,15 @@ public class SyncService {
                             tempUser.setEmail("unknown@user.com");
                             tempUser.setName(document.getString("userName")); // Android saves userName in note
                             if (tempUser.getName() == null) tempUser.setName("Unknown User");
-                            tempUser.setProfilePicUrl(document.getString("userProfilePic")); // Android saves pic in note
+                            
+                            // Fix profile pic if it's raw base64
+                            String userPic = document.getString("userProfilePic");
+                            if (userPic != null && !userPic.startsWith("http") && !userPic.startsWith("data:image/")) {
+                                if (userPic.startsWith("/9j/") || userPic.startsWith("iVBOR") || userPic.startsWith("R0lGOD")) {
+                                    userPic = "data:image/jpeg;base64," + userPic;
+                                }
+                            }
+                            tempUser.setProfilePicUrl(userPic);
                             userRepository.save(tempUser);
                             
                             note.setUser(tempUser);
