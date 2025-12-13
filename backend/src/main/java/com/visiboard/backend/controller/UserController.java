@@ -30,10 +30,34 @@ public class UserController {
         syncService.syncUserToFirebase(savedUser);
         return savedUser;
     }
-    @GetMapping("/{email}")
-    public org.springframework.http.ResponseEntity<User> getUserByEmail(@PathVariable String email) {
-        return userRepository.findByEmail(email)
-                .map(org.springframework.http.ResponseEntity::ok)
-                .orElse(org.springframework.http.ResponseEntity.notFound().build());
+    @GetMapping("/{id}")
+    public org.springframework.http.ResponseEntity<User> getUserByIdOrEmail(@PathVariable String id) {
+        // If it looks like an email
+        if (id.contains("@")) {
+            return userRepository.findByEmail(id)
+                    .map(org.springframework.http.ResponseEntity::ok)
+                    .orElse(org.springframework.http.ResponseEntity.notFound().build());
+        } 
+        // Otherwise try as UUID
+        else {
+            try {
+                java.util.UUID uuid = java.util.UUID.fromString(id);
+                return userRepository.findById(uuid)
+                        .map(org.springframework.http.ResponseEntity::ok)
+                        .orElse(org.springframework.http.ResponseEntity.notFound().build());
+            } catch (IllegalArgumentException e) {
+                return org.springframework.http.ResponseEntity.badRequest().build();
+            }
+        }
+    }
+
+    @GetMapping("/firebase/{uid}")
+    public org.springframework.http.ResponseEntity<User> getUserByFirebaseUid(@PathVariable String uid) {
+        User user = userRepository.findByFirebaseUid(uid);
+        if (user != null) {
+            return org.springframework.http.ResponseEntity.ok(user);
+        } else {
+            return org.springframework.http.ResponseEntity.notFound().build();
+        }
     }
 }

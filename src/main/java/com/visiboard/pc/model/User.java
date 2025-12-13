@@ -10,8 +10,15 @@ public class User {
     private String email;
     private String profilePicUrl;
     private String currentTier;
+    private String firebaseUid;
+    private int followersCount;
+    private int followingCount;
+    private int totalLikesReceived;
+    private String createdAt;
 
     // Getters and Setters
+    public String getFirebaseUid() { return firebaseUid; }
+    public void setFirebaseUid(String firebaseUid) { this.firebaseUid = firebaseUid; }
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
 
@@ -26,7 +33,21 @@ public class User {
     
     public String getCurrentTier() { return currentTier; }
     public void setCurrentTier(String currentTier) { this.currentTier = currentTier; }
+    // ISO string from backend
+
+    // Getters and Setters
+    public int getFollowersCount() { return followersCount; }
+    public void setFollowersCount(int followersCount) { this.followersCount = followersCount; }
     
+    public int getFollowingCount() { return followingCount; }
+    public void setFollowingCount(int followingCount) { this.followingCount = followingCount; }
+    
+    public int getTotalLikesReceived() { return totalLikesReceived; }
+    public void setTotalLikesReceived(int totalLikesReceived) { this.totalLikesReceived = totalLikesReceived; }
+    
+    public String getCreatedAt() { return createdAt; }
+    public void setCreatedAt(String createdAt) { this.createdAt = createdAt; }
+
     @Override
     public String toString() {
         return name != null ? name : "Unknown User";

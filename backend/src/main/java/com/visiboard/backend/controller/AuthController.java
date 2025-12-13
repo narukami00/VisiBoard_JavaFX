@@ -34,7 +34,13 @@ public class AuthController {
         // Find user by email
         java.util.Optional<User> userOptional = userRepository.findByEmail(email);
         if (userOptional.isPresent()) {
-            return ResponseEntity.ok(userOptional.get());
+            User user = userOptional.get();
+            // Self-healing: Ensure firebaseUid exists
+            if (user.getFirebaseUid() == null || user.getFirebaseUid().isEmpty()) {
+                user.setFirebaseUid(java.util.UUID.randomUUID().toString());
+                user = userRepository.save(user);
+            }
+            return ResponseEntity.ok(user);
         } else {
             return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials"));
         }
@@ -64,6 +70,10 @@ public class AuthController {
         newUser.setEmail(email);
         newUser.setName(name != null && !name.isEmpty() ? name : email.split("@")[0]);
         newUser.setProfilePicUrl("https://ui-avatars.com/api/?name=" + newUser.getName().replace(" ", "+") + "&background=e94560&color=fff");
+        
+        // Generate a placeholder Firebase UID for PC-only users
+        // This ensures they have a stable ID for notifications even if not synced to Firebase yet
+        newUser.setFirebaseUid(java.util.UUID.randomUUID().toString());
         
         User savedUser = userRepository.save(newUser);
         return ResponseEntity.ok(savedUser);

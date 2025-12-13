@@ -31,11 +31,24 @@ public class FirebaseConfig {
             
             GoogleCredentials credentials;
             try {
-                // Try to load from resources
-                credentials = GoogleCredentials.fromStream(getClass().getClassLoader().getResourceAsStream("serviceAccountKey.json"));
+                // Try to load from root directory (safe from git tracking)
+                java.io.File file = new java.io.File("serviceAccountKey.json");
+                if (file.exists()) {
+                     System.out.println("Loading serviceAccountKey.json from root directory...");
+                     credentials = GoogleCredentials.fromStream(new FileInputStream(file));
+                } else {
+                     // Fallback to resources (for legacy or production if bundled)
+                     System.out.println("Root key not found, trying resources...");
+                     java.io.InputStream resourceStream = getClass().getClassLoader().getResourceAsStream("serviceAccountKey.json");
+                     if (resourceStream != null) {
+                         credentials = GoogleCredentials.fromStream(resourceStream);
+                     } else {
+                         throw new IOException("Key not found in root or resources");
+                     }
+                }
             } catch (Exception e) {
                 // Fallback to default credentials (environment variable)
-                System.out.println("Could not find serviceAccountKey.json in resources, trying default credentials...");
+                System.out.println("Could not find serviceAccountKey.json, trying default credentials...");
                 credentials = GoogleCredentials.getApplicationDefault();
             }
 

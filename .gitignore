@@ -1,0 +1,13 @@
+serviceAccountKey.json
+/build/
+/target/
+.gradle/
+.idea/
+*.iml
+*.jar
+*.zip
+*.tar
+backend/build/
+
+*.iml
+*.md

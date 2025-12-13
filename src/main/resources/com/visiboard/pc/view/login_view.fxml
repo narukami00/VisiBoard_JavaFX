@@ -46,6 +46,28 @@
                   <Font size="14.0" />
                </font>
             </Button>
+            <javafx.scene.layout.HBox alignment="CENTER" spacing="5.0">
+               <children>
+                  <Label text="Don't have an account?" textFill="#b0b0b0">
+                     <font>
+                        <Font size="12.0" />
+                     </font>
+                  </Label>
+                  <javafx.scene.control.Hyperlink fx:id="goToSignupLink" text="Sign Up" textFill="#4a9eff" underline="true">
+                     <font>
+                        <Font size="12.0" />
+                     </font>
+                  </javafx.scene.control.Hyperlink>
+               </children>
+            </javafx.scene.layout.HBox>
+            <javafx.scene.control.Hyperlink fx:id="adminModeLink" text="🔐 Admin Mode" textFill="#e74c3c" underline="true">
+               <font>
+                  <Font name="System Bold" size="11.0" />
+               </font>
+               <VBox.margin>
+                  <Insets top="10.0" />
+               </VBox.margin>
+            </javafx.scene.control.Hyperlink>
          </children>
       </VBox>
    </children>

@@ -11,6 +11,9 @@ public class Comment {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @Column(name = "firebase_id")
+    private String firebaseId;
+
     @ManyToOne
     @JoinColumn(name = "note_id", nullable = false)
     @org.hibernate.annotations.OnDelete(action = org.hibernate.annotations.OnDeleteAction.CASCADE)
@@ -36,6 +39,9 @@ public class Comment {
     // Getters and Setters
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
+
+    public String getFirebaseId() { return firebaseId; }
+    public void setFirebaseId(String firebaseId) { this.firebaseId = firebaseId; }
 
     public Note getNote() { return note; }
     public void setNote(Note note) { this.note = note; }

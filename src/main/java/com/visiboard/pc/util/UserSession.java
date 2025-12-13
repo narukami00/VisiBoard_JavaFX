@@ -16,6 +16,7 @@ public class UserSession {
     private static final String PREF_USER_ID = "user_id";
     private static final String PREF_USER_EMAIL = "user_email";
     private static final String PREF_USER_NAME = "user_name";
+    private static final String PREF_FIREBASE_UID = "firebase_uid";
     // Note: Profile pic URL not stored in preferences as it can be too long (base64 images)
     
     private UserSession() {
@@ -67,6 +68,20 @@ public class UserSession {
     }
     
     /**
+     * Get the current user's Firebase UID
+     */
+    public String getFirebaseUid() {
+        return currentUser != null ? currentUser.getFirebaseUid() : null;
+    }
+    
+    /**
+     * Get the current user's profile picture URL
+     */
+    public String getUserProfilePic() {
+        return currentUser != null ? currentUser.getProfilePicUrl() : null;
+    }
+
+    /**
      * Check if a user is currently logged in
      */
     public boolean isLoggedIn() {
@@ -81,6 +96,7 @@ public class UserSession {
             prefs.put(PREF_USER_ID, currentUser.getId().toString());
             prefs.put(PREF_USER_EMAIL, currentUser.getEmail() != null ? currentUser.getEmail() : "");
             prefs.put(PREF_USER_NAME, currentUser.getName() != null ? currentUser.getName() : "");
+            prefs.put(PREF_FIREBASE_UID, currentUser.getFirebaseUid() != null ? currentUser.getFirebaseUid() : "");
             // Don't save profile pic URL - it can be too long (base64 images exceed Preferences max length)
         }
     }
@@ -96,6 +112,7 @@ public class UserSession {
                 user.setId(UUID.fromString(userId));
                 user.setEmail(prefs.get(PREF_USER_EMAIL, ""));
                 user.setName(prefs.get(PREF_USER_NAME, ""));
+                user.setFirebaseUid(prefs.get(PREF_FIREBASE_UID, ""));
                 // Profile pic URL will be fetched from server on login, not stored in preferences
                 this.currentUser = user;
             } catch (IllegalArgumentException e) {
@@ -113,5 +130,6 @@ public class UserSession {
         prefs.remove(PREF_USER_ID);
         prefs.remove(PREF_USER_EMAIL);
         prefs.remove(PREF_USER_NAME);
+        prefs.remove(PREF_FIREBASE_UID);
     }
 }

@@ -9,81 +9,99 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.layout.Region?>
 <?import javafx.scene.shape.Circle?>
+<?import javafx.scene.layout.StackPane?>
 
 <VBox xmlns="http://javafx.com/javafx" 
       xmlns:fx="http://javafx.com/fxml" 
       fx:controller="com.visiboard.pc.controller.NoteDetailController"
       styleClass="note-detail-container"
       stylesheets="@note_detail.css"
-      spacing="16"
-      prefWidth="500" 
-      prefHeight="650">
+      spacing="0"
+      prefWidth="600" 
+      prefHeight="800">
 
-    <!-- Header Section -->
-    <VBox styleClass="header-section" spacing="12">
-        <HBox spacing="12" alignment="CENTER_LEFT">
-            <ImageView fx:id="userAvatar" fitWidth="50" fitHeight="50" preserveRatio="true">
-                <clip>
-                    <Circle radius="25" centerX="25" centerY="25"/>
-                </clip>
-            </ImageView>
+    <!-- Scrollable Content Area -->
+    <ScrollPane fitToWidth="true" 
+                VBox.vgrow="ALWAYS" 
+                styleClass="main-scroll-pane"
+                hbarPolicy="NEVER">
+        <VBox spacing="0" styleClass="content-wrapper">
             
-            <VBox spacing="2" HBox.hgrow="ALWAYS">
-                <Label fx:id="userNameLabel" text="User Name" styleClass="user-name"/>
-                <Label fx:id="timestampLabel" text="2 hours ago" styleClass="timestamp"/>
+            <!-- Note Card -->
+            <VBox styleClass="note-card" spacing="12">
+                <!-- Card Header -->
+                <HBox spacing="12" alignment="CENTER_LEFT" styleClass="card-header">
+                    <ImageView fx:id="userAvatar" fitWidth="48" fitHeight="48" preserveRatio="true">
+                        <clip>
+                            <Circle radius="24" centerX="24" centerY="24"/>
+                        </clip>
+                    </ImageView>
+                    
+                    <VBox spacing="2" HBox.hgrow="ALWAYS">
+                        <Label fx:id="userNameLabel" text="User Name" styleClass="user-name"/>
+                        <Label fx:id="timestampLabel" text="2 hours ago" styleClass="timestamp"/>
+                    </VBox>
+                    
+                    <Button fx:id="deleteButton" 
+                            text="🗑" 
+                            onAction="#handleDelete" 
+                            visible="false" 
+                            styleClass="icon-button-delete"/>
+                </HBox>
+
+                <!-- Card Body -->
+                <Label fx:id="contentLabel" 
+                       text="Note content goes here..." 
+                       wrapText="true" 
+                       styleClass="content-text"/>
+                       
+                <!-- Note Image (New) -->
+                <StackPane fx:id="imageContainer" managed="false" visible="false" styleClass="image-container">
+                    <ImageView fx:id="noteImageView" preserveRatio="true" styleClass="note-image"/>
+                </StackPane>
+
+                <!-- Card Footer (Stats & Actions) -->
+                <VBox spacing="8">
+                    <HBox spacing="20" styleClass="stats-row">
+                        <Label fx:id="likesCountLabel" text="0 likes" styleClass="stat-label"/>
+                        <Label fx:id="commentsCountLabel" text="0 comments" styleClass="stat-label"/>
+                    </HBox>
+                    <Region styleClass="divider" prefHeight="1" />
+                    <HBox spacing="0" alignment="CENTER" styleClass="action-row">
+                        <Button fx:id="likeButton" text="♡ Like" onAction="#handleLike" styleClass="action-button" maxWidth="Infinity" HBox.hgrow="ALWAYS"/>
+                        <Button text="💬 Comment" styleClass="action-button" maxWidth="Infinity" HBox.hgrow="ALWAYS"/>
+                        <Button text="↗ Share" styleClass="action-button" maxWidth="Infinity" HBox.hgrow="ALWAYS"/>
+                    </HBox>
+                </VBox>
             </VBox>
-            
-            <Button fx:id="deleteButton" 
-                    text="Delete" 
-                    onAction="#handleDelete" 
-                    visible="false" 
-                    styleClass="delete-button"/>
-        </HBox>
-    </VBox>
 
-    <!-- Content Section -->
-    <VBox styleClass="content-section" spacing="16">
-        <Label fx:id="contentLabel" 
-               text="Note content goes here..." 
-               wrapText="true" 
-               styleClass="content-label"/>
-        
-        <!-- Stats Section -->
-        <HBox spacing="20" alignment="CENTER_LEFT">
-            <Label fx:id="likesCountLabel" text="0 likes" styleClass="stat-label"/>
-            <Label fx:id="commentsCountLabel" text="0 comments" styleClass="stat-label"/>
-        </HBox>
-        
-        <!-- Action Buttons -->
-        <HBox spacing="12">
-            <Button fx:id="likeButton" 
-                    text="Like" 
-                    onAction="#handleLike" 
-                    styleClass="modern-button"/>
-        </HBox>
-        
-        <!-- Comments Section -->
-        <Label text="Comments" styleClass="section-title"/>
-        <ScrollPane fitToWidth="true" 
-                    VBox.vgrow="ALWAYS" 
-                    styleClass="scroll-pane"
-                    hbarPolicy="NEVER">
+            <!-- Comments Header -->
+            <VBox styleClass="comments-section-header">
+                <Label text="Comments" styleClass="section-title"/>
+            </VBox>
+
+            <!-- Comments List -->
             <VBox fx:id="commentsContainer" 
-                  spacing="12" 
-                  styleClass="comments-container"/>
-        </ScrollPane>
-        
-        <!-- Add Comment -->
+                  spacing="0" 
+                  styleClass="comments-list"/>
+                  
+        </VBox>
+    </ScrollPane>
+
+    <!-- Footer Input Area -->
+    <VBox styleClass="input-area" spacing="10">
+        <Region styleClass="divider" prefHeight="1" />
         <HBox spacing="12" alignment="CENTER">
+            <ImageView fx:id="currentUserAvatar" fitWidth="32" fitHeight="32" visible="false" managed="false"/> 
             <TextArea fx:id="commentInput" 
                       promptText="Write a comment..." 
-                      prefHeight="60" 
+                      prefHeight="40" 
                       wrapText="true" 
                       styleClass="comment-input"
                       HBox.hgrow="ALWAYS"/>
-            <Button text="Post" 
+            <Button text="Send" 
                     onAction="#handlePostComment" 
-                    styleClass="post-button"/>
+                    styleClass="send-button"/>
         </HBox>
     </VBox>
 

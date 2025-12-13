@@ -3,54 +3,66 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.Tab?>
+<?import javafx.scene.control.TabPane?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.FlowPane?>
 <?import javafx.scene.layout.VBox?>
-<?import javafx.scene.layout.HBox?>
-<?import javafx.scene.shape.Circle?>
 <?import javafx.scene.text.Font?>
 
-<ScrollPane fitToWidth="true" xmlns:fx="http://javafx.com/fxml" style="-fx-background-color: transparent;">
-    <VBox spacing="15.0" style="-fx-padding: 20;">
-        <Label text="Your Feed">
-            <font>
-                <Font name="System Bold" size="24.0"/>
-            </font>
-        </Label>
-        
-        <!-- Mock Post 1 -->
-        <VBox style="-fx-background-color: white; -fx-padding: 15; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 10, 0, 0, 0); -fx-background-radius: 5;">
-            <HBox spacing="10" alignment="CENTER_LEFT">
-                <Circle radius="20" fill="lightgray"/>
-                <VBox>
-                    <Label text="User One" style="-fx-font-weight: bold;"/>
-                    <Label text="2 hours ago" textFill="gray"/>
-                </VBox>
-            </HBox>
-            <Label text="Just exploring the city! Found this amazing coffee shop." wrapText="true" style="-fx-padding: 10 0 0 0;"/>
-        </VBox>
+<BorderPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.visiboard.pc.controller.FeedController" style="-fx-background-color: #16213e;">
+    <center>
+        <TabPane fx:id="tabPane" style="-fx-background-color: transparent; -fx-border-width: 0;" tabClosingPolicy="UNAVAILABLE">
+            <!-- Discover Tab -->
+            <Tab text="Discover" closable="false" style="-fx-background-color: transparent;">
+                <BorderPane style="-fx-background-color: #16213e;">
+                    <top>
+                        <VBox style="-fx-background-color: #1a1a2e; -fx-padding: 15;">
+                            <Label text="Discover Notes" textFill="white">
+                                <font>
+                                    <Font name="System Bold" size="20.0"/>
+                                </font>
+                            </Label>
+                            <Label text="Explore location-based notes from around the world" textFill="#b0b0b0" style="-fx-padding: 5 0 0 0;">
+                                <font>
+                                    <Font size="12.0"/>
+                                </font>
+                            </Label>
+                        </VBox>
+                    </top>
+                    <center>
+                        <ScrollPane fx:id="discoverScrollPane" fitToWidth="true" style="-fx-background-color: transparent; -fx-background: transparent;">
+                            <FlowPane fx:id="discoverFlowPane" hgap="15" vgap="15" alignment="TOP_CENTER" style="-fx-background-color: transparent; -fx-padding: 20;"/>
+                        </ScrollPane>
+                    </center>
+                </BorderPane>
+            </Tab>
 
-        <!-- Mock Post 2 -->
-        <VBox style="-fx-background-color: white; -fx-padding: 15; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 10, 0, 0, 0); -fx-background-radius: 5;">
-            <HBox spacing="10" alignment="CENTER_LEFT">
-                <Circle radius="20" fill="lightgray"/>
-                <VBox>
-                    <Label text="User Two" style="-fx-font-weight: bold;"/>
-                    <Label text="5 hours ago" textFill="gray"/>
-                </VBox>
-            </HBox>
-            <Label text="The view from here is incredible." wrapText="true" style="-fx-padding: 10 0 0 0;"/>
-        </VBox>
-        
-         <!-- Mock Post 3 -->
-        <VBox style="-fx-background-color: white; -fx-padding: 15; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 10, 0, 0, 0); -fx-background-radius: 5;">
-            <HBox spacing="10" alignment="CENTER_LEFT">
-                <Circle radius="20" fill="lightgray"/>
-                <VBox>
-                    <Label text="User Three" style="-fx-font-weight: bold;"/>
-                    <Label text="1 day ago" textFill="gray"/>
-                </VBox>
-            </HBox>
-            <Label text="Anyone up for a meetup this weekend?" wrapText="true" style="-fx-padding: 10 0 0 0;"/>
-        </VBox>
+            <!-- Notifications Tab -->
+            <Tab fx:id="notificationsTab" text="Notifications" closable="false" style="-fx-background-color: transparent;">
+                <BorderPane style="-fx-background-color: #16213e;">
+                    <top>
+                        <VBox style="-fx-background-color: #1a1a2e; -fx-padding: 15;">
+                            <Label text="Notifications" textFill="white">
+                                <font>
+                                    <Font name="System Bold" size="20.0"/>
+                                </font>
+                            </Label>
+                            <Label text="Stay updated with likes, comments, and follows" textFill="#b0b0b0" style="-fx-padding: 5 0 0 0;">
+                                <font>
+                                    <Font size="12.0"/>
+                                </font>
+                            </Label>
+                        </VBox>
+                    </top>
+                    <center>
+                        <ScrollPane fx:id="notificationsScrollPane" fitToWidth="true" style="-fx-background-color: transparent; -fx-background: transparent;">
+                            <VBox fx:id="notificationsVBox" spacing="10" style="-fx-background-color: transparent; -fx-padding: 20;"/>
+                        </ScrollPane>
+                    </center>
+                </BorderPane>
+            </Tab>
+        </TabPane>
+    </center>
+</BorderPane>
 
-    </VBox>
-</ScrollPane>

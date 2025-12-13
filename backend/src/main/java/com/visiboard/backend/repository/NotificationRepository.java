@@ -8,4 +8,7 @@ import java.util.UUID;
 public interface NotificationRepository extends JpaRepository<Notification, UUID> {
     List<Notification> findByRecipientIdOrderByCreatedAtDesc(UUID recipientId);
     long countByRecipientIdAndIsReadFalse(UUID recipientId);
+
+    List<Notification> findByRecipientFirebaseUidOrderByCreatedAtDesc(String firebaseUid);
+    long countByRecipientFirebaseUidAndIsReadFalse(String firebaseUid);
 }

@@ -155,26 +155,17 @@
     }
 
     // Function to add notes with custom floating markers
-    function addNotes(notesJson) {
+    function addNotes(notesJson, shouldFitBounds) {
       try {
-        console.log("addNotes called with: " + notesJson);
+        console.log("addNotes called with count: " + (notesJson ? JSON.parse(notesJson).length : 0) + ", fitBounds: " + shouldFitBounds);
         const notes = JSON.parse(notesJson);
-        console.log("Parsed notes count: " + notes.length);
         var bounds = [];
 
         // Clear existing markers
         if (markersLayer) {
             markersLayer.clearLayers();
-            console.log("Cleared existing markers");
         } else {
-            console.error("markersLayer is undefined. Re-initializing...");
-            if (map) {
-                markersLayer = L.layerGroup().addTo(map);
-                console.log("markersLayer re-initialized");
-            } else {
-                console.error("Map is also undefined. Cannot add notes.");
-                return;
-            }
+             if (map) markersLayer = L.layerGroup().addTo(map);
         }
 
         notes.forEach(note => {
@@ -186,7 +177,6 @@
                 '#FDCB6E', '#E17055', '#A29BFE', '#55EFC4', 
                 '#FF7675', '#FD79A8', '#00CEC9', '#81ECEC'
             ];
-            // Hash function for consistent color
             var hash = 0;
             var str = note.id + (note.content || "");
             for (var i = 0; i < str.length; i++) {
@@ -195,46 +185,97 @@
             var colorIndex = Math.abs(hash) % colors.length;
             var randomColor = colors[colorIndex];
             
-            // Truncate text
             var shortText = note.content ? (note.content.length > 20 ? note.content.substring(0, 20) + "..." : note.content) : "New Note";
 
-            // Custom Icon (Text Bubble)
+            var htmlContent = "<div style='display: flex; flex-direction: column; align-items: center;'>";
+            htmlContent += "<div style='background-color: " + randomColor + "; padding: 12px 12px 8px 12px; border-radius: 16px; border: 2px solid rgba(255,255,255,0.3); box-shadow: 0 4px 6px rgba(0,0,0,0.2); color: white; font-weight: bold; font-family: sans-serif; white-space: nowrap; font-size: 14px; text-shadow: 0 1px 2px rgba(0,0,0,0.3); margin-top: 0px;'>";
+            htmlContent += "<span>" + shortText + "</span></div>";
+            htmlContent += "</div>";
+
             var customIcon = L.divIcon({
                 className: 'custom-div-icon',
-                html: "<div style='background-color: " + randomColor + "; padding: 8px 12px; border-radius: 16px; border: 2px solid rgba(255,255,255,0.3); box-shadow: 0 4px 6px rgba(0,0,0,0.2); color: white; font-weight: bold; font-family: sans-serif; white-space: nowrap; font-size: 14px; text-shadow: 0 1px 2px rgba(0,0,0,0.3);'>" + shortText + "</div>",
+                html: htmlContent,
                 iconSize: [null, null], // Auto size
-                iconAnchor: [40, 20] // Approximate center
+                iconAnchor: [20, 40]
             });
 
             var marker = L.marker([note.lat, note.lng], {icon: customIcon});
             marker.addTo(markersLayer);
-            
-            // Store ID in marker options for easy access
             marker.noteId = note.id;
 
-            // Click Event -> Open JavaFX Detail Window
             marker.on('click', function(e) {
                 console.log("Marker clicked: " + this.noteId);
                 if (window.javaConnector) {
                     window.javaConnector.openNoteDetail(this.noteId);
-                } else {
-                    console.error("JavaConnector not found on marker click!");
                 }
-                L.DomEvent.stopPropagation(e); // Prevent map click
+                L.DomEvent.stopPropagation(e); 
             });
             
             bounds.push([note.lat, note.lng]);
           }
         });
 
-        console.log("Added " + notes.length + " markers to map");
-        if (bounds.length > 0) {
+        console.log("Added " + notes.length + " markers.");
+        
+        // Only fit bounds if explicitly requested (defults to true if undefined, but we pass false when navigating)
+        if (shouldFitBounds !== false && bounds.length > 0) {
+          console.log("Fitness bounds...");
           map.fitBounds(bounds, { padding: [50, 50] });
+        } else {
+            console.log("Skipping fitBounds (navigation active).");
         }
       } catch (e) {
         console.error("Error adding notes: " + e);
       }
     }
+    
+    // Function to fly to a specific location with zoom animation
+    function flyToLocation(lat, lng, noteId, shouldOpenDetail) {
+      try {
+        console.log("Flying to: " + lat + ", " + lng + ", noteId: " + noteId + ", openDetail: " + shouldOpenDetail);
+        
+        map.flyTo([lat, lng], 18, {
+          animate: true,
+          duration: 2.0 
+        });
+        
+        if (noteId) {
+          setTimeout(function() {
+            markersLayer.eachLayer(function(layer) {
+              if (layer.noteId === noteId) {
+                var markerElement = layer.getElement();
+                if (markerElement) {
+                  markerElement.style.animation = 'pulse 0.5s ease-in-out 3';
+                }
+              }
+            });
+            
+            // Auto-open detail if requested
+            if (shouldOpenDetail === true && window.javaConnector) {
+                console.log("Auto-opening detail for note: " + noteId);
+                window.javaConnector.openNoteDetail(noteId);
+            }
+            
+          }, 2100); 
+        }
+      } catch (e) {
+        console.error("Error flying: " + e);
+      }
+    }
   </script>
+  
+  <style>
+    @keyframes pulse {
+      0% {
+        transform: scale(1);
+      }
+      50% {
+        transform: scale(1.2);
+      }
+      100% {
+        transform: scale(1);
+      }
+    }
+  </style>
 </body>
 </html>

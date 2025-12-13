@@ -29,6 +29,12 @@ public class LoginController {
     
     @FXML
     private Label errorLabel;
+    
+    @FXML
+    private javafx.scene.control.Hyperlink goToSignupLink;
+    
+    @FXML
+    private javafx.scene.control.Hyperlink adminModeLink;
 
     private ApiService apiService;
 
@@ -36,6 +42,14 @@ public class LoginController {
     private void initialize() {
         apiService = new ApiService();
         loginButton.setOnAction(event -> handleLogin());
+        
+        if (goToSignupLink != null) {
+            goToSignupLink.setOnAction(event -> navigateToSignup());
+        }
+        
+        if (adminModeLink != null) {
+            adminModeLink.setOnAction(event -> navigateToAdminLogin());
+        }
         
         // Allow Enter key to submit
         emailField.setOnAction(event -> handleLogin());
@@ -108,6 +122,32 @@ public class LoginController {
         } catch (IOException e) {
             e.printStackTrace();
             showError("Failed to load dashboard");
+        }
+    }
+    
+    private void navigateToSignup() {
+        try {
+            FXMLLoader fxmlLoader = new FXMLLoader(Main.class.getResource("view/signup_view.fxml"));
+            Scene scene = new Scene(fxmlLoader.load(), 800, 600);
+            Stage stage = (Stage) loginButton.getScene().getWindow();
+            stage.setScene(scene);
+            stage.setTitle("VisiBoard PC - Sign Up");
+        } catch (IOException e) {
+            e.printStackTrace();
+            showError("Failed to load signup page");
+        }
+    }
+    
+    private void navigateToAdminLogin() {
+        try {
+            FXMLLoader fxmlLoader = new FXMLLoader(Main.class.getResource("view/admin_login_view.fxml"));
+            Scene scene = new Scene(fxmlLoader.load(), 800, 600);
+            Stage stage = (Stage) loginButton.getScene().getWindow();
+            stage.setScene(scene);
+            stage.setTitle("VisiBoard - Admin Login");
+        } catch (IOException e) {
+            e.printStackTrace();
+            showError("Failed to load admin login page");
         }
     }
 }

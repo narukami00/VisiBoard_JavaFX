@@ -22,6 +22,8 @@ public class Message {
     @Column(columnDefinition = "TEXT")
     private String text;
 
+    private String firebaseId;
+
     private boolean isAnonymous;
     private boolean isRead;
     private LocalDateTime createdAt;
@@ -45,6 +47,9 @@ public class Message {
 
     public String getText() { return text; }
     public void setText(String text) { this.text = text; }
+
+    public String getFirebaseId() { return firebaseId; }
+    public void setFirebaseId(String firebaseId) { this.firebaseId = firebaseId; }
 
     public boolean isAnonymous() { return isAnonymous; }
     public void setAnonymous(boolean anonymous) { isAnonymous = anonymous; }

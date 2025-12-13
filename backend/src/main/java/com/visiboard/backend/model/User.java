@@ -37,6 +37,8 @@ public class User {
     @Column(columnDefinition = "integer default 0", nullable = false)
     private int totalLikesReceived = 0;
 
+    private java.time.LocalDateTime createdAt;
+
     public User() {}
 
     public User(String name, String email, String profilePicUrl) {
@@ -79,6 +81,9 @@ public class User {
 
     public int getTotalLikesReceived() { return totalLikesReceived; }
     public void setTotalLikesReceived(int totalLikesReceived) { this.totalLikesReceived = totalLikesReceived; }
+
+    public java.time.LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(java.time.LocalDateTime createdAt) { this.createdAt = createdAt; }
 
     // Transient getters for latitude and longitude (for JSON serialization)
     @com.fasterxml.jackson.annotation.JsonProperty("lat")

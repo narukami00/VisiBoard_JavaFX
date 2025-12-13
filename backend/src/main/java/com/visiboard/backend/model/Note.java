@@ -13,6 +13,9 @@ public class Note {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @Column(name = "firebase_id")
+    private String firebaseId;
+
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
@@ -49,6 +52,9 @@ public class Note {
     // Getters and Setters
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
+
+    public String getFirebaseId() { return firebaseId; }
+    public void setFirebaseId(String firebaseId) { this.firebaseId = firebaseId; }
 
     public User getUser() { return user; }
     public void setUser(User user) { this.user = user; }
@@ -103,4 +109,18 @@ public class Note {
 
     public java.util.List<String> getLikedByUsers() { return likedByUsers; }
     public void setLikedByUsers(java.util.List<String> likedByUsers) { this.likedByUsers = likedByUsers; }
+
+    @Column(columnDefinition = "TEXT")
+    private String imageBase64;
+    private Integer imageWidth;
+    private Integer imageHeight;
+
+    public String getImageBase64() { return imageBase64; }
+    public void setImageBase64(String imageBase64) { this.imageBase64 = imageBase64; }
+
+    public Integer getImageWidth() { return imageWidth; }
+    public void setImageWidth(Integer imageWidth) { this.imageWidth = imageWidth; }
+
+    public Integer getImageHeight() { return imageHeight; }
+    public void setImageHeight(Integer imageHeight) { this.imageHeight = imageHeight; }
 }

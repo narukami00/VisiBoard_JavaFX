@@ -26,7 +26,16 @@ public class NoteController {
 
     @GetMapping
     public List<Note> getAllNotes() {
-        return noteRepository.findAll();
+        List<Note> notes = noteRepository.findAll();
+        // Populate likedByUsers for UI
+        for (Note note : notes) {
+            java.util.List<String> likers = noteLikeRepository.findByNoteId(note.getId())
+                    .stream()
+                    .map(like -> like.getUser().getFirebaseUid())
+                    .collect(java.util.stream.Collectors.toList());
+            note.setLikedByUsers(likers);
+        }
+        return notes;
     }
 
     @PostMapping
@@ -74,7 +83,7 @@ public class NoteController {
                     // Populate likedByUsers
                     java.util.List<String> likers = noteLikeRepository.findByNoteId(note.getId())
                             .stream()
-                            .map(like -> like.getUser().getEmail())
+                            .map(like -> like.getUser().getFirebaseUid())
                             .collect(java.util.stream.Collectors.toList());
                     note.setLikedByUsers(likers);
                     
@@ -84,11 +93,22 @@ public class NoteController {
     }
     @DeleteMapping("/{id}")
     public org.springframework.http.ResponseEntity<Void> deleteNote(@PathVariable java.util.UUID id) {
-        if (!noteRepository.existsById(id)) {
+        Note note = noteRepository.findById(id).orElse(null);
+        if (note == null) {
             return org.springframework.http.ResponseEntity.notFound().build();
         }
+        
+        String firebaseId = note.getFirebaseId();
+        
         noteRepository.deleteById(id);
-        syncService.deleteNoteFromFirebase(id.toString());
+        
+        if (firebaseId != null && !firebaseId.isEmpty()) {
+            syncService.deleteNoteFromFirebase(firebaseId);
+        } else {
+            // Fallback: try to delete using UUID if firebaseId was missing (legacy notes)
+            syncService.deleteNoteFromFirebase(id.toString());
+        }
+        
         return org.springframework.http.ResponseEntity.ok().build();
     }
 
@@ -96,13 +116,22 @@ public class NoteController {
     public Note toggleLike(@PathVariable java.util.UUID id, @RequestParam(required = false) java.util.UUID userId) {
         Note note = noteRepository.findById(id).orElseThrow(() -> new RuntimeException("Note not found"));
         
-        // For demo, use the first user or specific demo user
-        com.visiboard.backend.model.User user = userRepository.findByEmail("demo@account.com").orElse(null);
+        com.visiboard.backend.model.User user = null;
+        
+        if (userId != null) {
+            user = userRepository.findById(userId).orElse(null);
+        }
+        
         if (user == null) {
-             user = userRepository.findAll().stream().findFirst().orElseThrow(() -> new RuntimeException("No user found"));
+            // Fallback: For demo, use the first user or specific demo user
+            user = userRepository.findByEmail("demo@account.com").orElse(null);
+            if (user == null) {
+                 user = userRepository.findAll().stream().findFirst().orElseThrow(() -> new RuntimeException("No user found"));
+            }
         }
         
         java.util.Optional<com.visiboard.backend.model.NoteLike> existingLike = noteLikeRepository.findByUserIdAndNoteId(user.getId(), note.getId());
+        boolean isLiked = false;
         
         if (existingLike.isPresent()) {
             // Unlike
@@ -113,19 +142,21 @@ public class NoteController {
             com.visiboard.backend.model.NoteLike newLike = new com.visiboard.backend.model.NoteLike(user, note);
             noteLikeRepository.save(newLike);
             note.setLikesCount(note.getLikesCount() + 1);
+            isLiked = true;
         }
         
         Note savedNote = noteRepository.save(note);
         
-        // Sync updated like count to Firebase
-        syncService.syncNoteToFirebase(savedNote);
-        
-        // Re-populate likedByUsers for response
+        // Re-populate likedByUsers for response AND sync
         java.util.List<String> likers = noteLikeRepository.findByNoteId(savedNote.getId())
                 .stream()
-                .map(like -> like.getUser().getEmail())
+                .map(like -> like.getUser().getFirebaseUid())
                 .collect(java.util.stream.Collectors.toList());
         savedNote.setLikedByUsers(likers);
+        
+        // Sync updated like count and likedBy users to Firebase ATOMICALLY
+        // This prevents overwriting the list with partial local data
+        syncService.updateNoteLikeInFirebase(savedNote.getId().toString(), user.getFirebaseUid(), isLiked);
         
         return savedNote;
     }

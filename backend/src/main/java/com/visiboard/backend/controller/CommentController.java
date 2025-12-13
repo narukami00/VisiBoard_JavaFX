@@ -61,11 +61,11 @@ public class CommentController {
         note.setCommentsCount(note.getCommentsCount() + 1);
         Note updatedNote = noteRepository.save(note);
         
-        // Sync comment to Firebase
-        syncService.syncCommentToFirebase(savedComment, note);
-        
-        // Update note comment count in Firebase
+        // Update note comment count in Firebase first (ensures note has firebaseId)
         syncService.syncNoteToFirebase(updatedNote);
+        
+        // Sync comment to Firebase
+        syncService.syncCommentToFirebase(savedComment, updatedNote);
         
         return savedComment;
     }

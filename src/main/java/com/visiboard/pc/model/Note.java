@@ -52,4 +52,17 @@ public class Note {
     private java.util.List<String> likedByUsers;
     public java.util.List<String> getLikedByUsers() { return likedByUsers; }
     public void setLikedByUsers(java.util.List<String> likedByUsers) { this.likedByUsers = likedByUsers; }
+
+    private String imageBase64;
+    private Integer imageWidth;
+    private Integer imageHeight;
+
+    public String getImageBase64() { return imageBase64; }
+    public void setImageBase64(String imageBase64) { this.imageBase64 = imageBase64; }
+
+    public Integer getImageWidth() { return imageWidth; }
+    public void setImageWidth(Integer imageWidth) { this.imageWidth = imageWidth; }
+
+    public Integer getImageHeight() { return imageHeight; }
+    public void setImageHeight(Integer imageHeight) { this.imageHeight = imageHeight; }
 }

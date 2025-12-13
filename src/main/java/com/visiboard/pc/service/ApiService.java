@@ -220,8 +220,16 @@ public class ApiService {
     }
 
     public java.util.concurrent.CompletableFuture<Note> toggleLike(String noteId) {
+        String url = BASE_URL + "/notes/" + noteId + "/like";
+        
+        // Append current user ID if logged in
+        java.util.UUID userId = com.visiboard.pc.util.UserSession.getInstance().getUserId();
+        if (userId != null) {
+            url += "?userId=" + userId.toString();
+        }
+        
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(BASE_URL + "/notes/" + noteId + "/like"))
+                .uri(URI.create(url))
                 .POST(HttpRequest.BodyPublishers.noBody())
                 .build();
 
@@ -327,6 +335,204 @@ public class ApiService {
         } catch (Exception e) {
             e.printStackTrace();
             return CompletableFuture.completedFuture(null);
+        }
+    }
+    
+    /**
+     * Get notifications for a user
+     */
+    public CompletableFuture<List<com.visiboard.pc.model.Notification>> getNotifications(String userId) {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(BASE_URL + "/notifications/user/" + userId))
+                .GET()
+                .build();
+
+        return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenApply(response -> {
+                    System.out.println("GET /notifications/user/" + userId + " Status: " + response.statusCode());
+                    System.out.println("Response body: " + response.body());
+                    if (response.statusCode() != 200) {
+                        return Collections.<com.visiboard.pc.model.Notification>emptyList();
+                    }
+                    try {
+                        return objectMapper.readValue(response.body(), new TypeReference<List<com.visiboard.pc.model.Notification>>() {});
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        return Collections.<com.visiboard.pc.model.Notification>emptyList();
+                    }
+                });
+    }
+
+    public CompletableFuture<List<com.visiboard.pc.model.Notification>> getNotificationsByFirebaseUid(String firebaseUid) {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(BASE_URL + "/notifications/user/firebase/" + firebaseUid))
+                .GET()
+                .build();
+
+        return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenApply(response -> {
+                    System.out.println("GET /notifications/user/firebase/" + firebaseUid + " Status: " + response.statusCode());
+                    System.out.println("Response body: " + response.body());
+                    if (response.statusCode() != 200) {
+                        return Collections.<com.visiboard.pc.model.Notification>emptyList();
+                    }
+                    try {
+                        return objectMapper.readValue(response.body(), new TypeReference<List<com.visiboard.pc.model.Notification>>() {});
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        return Collections.<com.visiboard.pc.model.Notification>emptyList();
+                    }
+                });
+    }
+    
+    /**
+     * Delete a notification
+     */
+    public CompletableFuture<Boolean> deleteNotification(String notificationId) {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(BASE_URL + "/notifications/" + notificationId))
+                .DELETE()
+                .build();
+
+        return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenApply(response -> {
+                    System.out.println("DELETE /notifications/" + notificationId + " Status: " + response.statusCode());
+                    return response.statusCode() >= 200 && response.statusCode() < 300;
+                });
+    }
+
+    public CompletableFuture<Boolean> followUser(String targetUid) {
+        return toggleFollow(targetUid, true);
+    }
+    
+    public CompletableFuture<Boolean> unfollowUser(String targetUid) {
+        return toggleFollow(targetUid, false);
+    }
+    
+    private CompletableFuture<Boolean> toggleFollow(String targetUid, boolean isFollow) {
+        try {
+            com.visiboard.pc.model.User currentUser = com.visiboard.pc.util.UserSession.getInstance().getCurrentUser();
+            if (currentUser == null || currentUser.getFirebaseUid() == null) return CompletableFuture.completedFuture(false);
+            
+            String endpoint = isFollow ? "/follow/" : "/follow/unfollow/";
+            String url = BASE_URL + endpoint + currentUser.getFirebaseUid() + "/" + targetUid;
+            
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .POST(HttpRequest.BodyPublishers.noBody())
+                    .build();
+            
+            return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                    .thenApply(response -> {
+                        System.out.println((isFollow ? "Follow" : "Unfollow") + " response: " + response.statusCode());
+                        return response.statusCode() == 200;
+                    });
+        } catch (Exception e) {
+            e.printStackTrace();
+            return CompletableFuture.completedFuture(false);
+        }
+    }
+    
+    public CompletableFuture<Boolean> isFollowing(String targetUid) {
+        try {
+            com.visiboard.pc.model.User currentUser = com.visiboard.pc.util.UserSession.getInstance().getCurrentUser();
+            if (currentUser == null || currentUser.getFirebaseUid() == null) return CompletableFuture.completedFuture(false);
+            
+            String url = BASE_URL + "/follow/check/" + currentUser.getFirebaseUid() + "/" + targetUid;
+            
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .GET()
+                    .build();
+            
+            return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                    .thenApply(response -> {
+                        if (response.statusCode() == 200) {
+                            try {
+                                java.util.Map<String, Boolean> result = objectMapper.readValue(response.body(), new TypeReference<java.util.Map<String, Boolean>>() {});
+                                return result.get("isFollowing");
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                                return false;
+                            }
+                        }
+                        return false;
+                    });
+        } catch (Exception e) {
+            e.printStackTrace();
+            return CompletableFuture.completedFuture(false);
+        }
+    }
+    
+    public CompletableFuture<com.visiboard.pc.model.User> getUserByFirebaseUid(String uid) {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(BASE_URL + "/users/firebase/" + uid))
+                .GET()
+                .build();
+
+        return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenApply(response -> {
+                    System.out.println("GET /users/firebase/" + uid + " Status: " + response.statusCode());
+                    System.out.println("Body: " + response.body());
+                    if (response.statusCode() != 200) return null;
+                    try {
+                        return objectMapper.readValue(response.body(), com.visiboard.pc.model.User.class);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        return null;
+                    }
+                });
+    }
+
+    public CompletableFuture<com.visiboard.pc.model.User> getUserById(String uuid) {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(BASE_URL + "/users/" + uuid))
+                .GET()
+                .build();
+
+        return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenApply(response -> {
+                    System.out.println("GET /users/" + uuid + " Status: " + response.statusCode());
+                    System.out.println("Body: " + response.body());
+                    if (response.statusCode() != 200) return null;
+                    try {
+                        return objectMapper.readValue(response.body(), com.visiboard.pc.model.User.class);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        return null;
+                    }
+                });
+    }
+
+    public CompletableFuture<Boolean> sendMessage(String recipientFirebaseUid, String messageText) {
+        try {
+            com.visiboard.pc.model.User currentUser = com.visiboard.pc.util.UserSession.getInstance().getCurrentUser();
+            if (currentUser == null || currentUser.getFirebaseUid() == null) {
+                return CompletableFuture.completedFuture(false);
+            }
+
+            java.util.Map<String, Object> payload = new java.util.HashMap<>();
+            payload.put("fromUserId", currentUser.getFirebaseUid());
+            payload.put("toUserId", recipientFirebaseUid);
+            payload.put("messageText", messageText);
+            payload.put("isAnonymous", false);
+
+            String requestBody = objectMapper.writeValueAsString(payload);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(BASE_URL + "/messages/send"))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                    .build();
+
+            return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                    .thenApply(response -> {
+                        System.out.println("Send Message response: " + response.statusCode());
+                        return response.statusCode() == 200;
+                    });
+        } catch (Exception e) {
+            e.printStackTrace();
+            return CompletableFuture.completedFuture(false);
         }
     }
 }

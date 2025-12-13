@@ -16,4 +16,6 @@ public interface NoteRepository extends JpaRepository<Note, UUID> {
     List<Note> findNearbyNotes(@Param("point") Point point, @Param("radiusInMeters") double radiusInMeters);
 
     List<Note> findByUserId(java.util.UUID userId);
+
+    Note findByFirebaseId(String firebaseId);
 }

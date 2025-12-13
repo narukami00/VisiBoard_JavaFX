@@ -8,6 +8,7 @@ import javafx.fxml.FXML;
 import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
 import netscape.javascript.JSObject;
+import com.visiboard.pc.ui.UserInfoDialog;
 
 import java.net.URL;
 
@@ -30,6 +31,10 @@ public class MapController {
         this.objectMapper = new ObjectMapper();
     }
 
+    private Double pendingLat = null;
+    private Double pendingLng = null;
+    private String pendingNoteId = null;
+
     @FXML
     private void initialize() {
         WebEngine webEngine = mapWebView.getEngine();
@@ -51,11 +56,59 @@ public class MapController {
                 window.setMember("javaConnector", this);
                 System.out.println("JavaConnector registered (MapController).");
                 webEngine.executeScript("console.log('JavaConnector status: ' + (window.javaConnector ? 'Active' : 'Missing'))");
-                loadNotesOnMap(webEngine);
+                
+                // Use the no-arg method which defaults to fitBounds=true, BUT we override it logic below
+                // Actually, let's just use the logic directly
+                
+                // Navigate to pending location if set
+                if (pendingLat != null && pendingLng != null) {
+                    Platform.runLater(() -> {
+                         // Pass false to fitBounds, true to auto-open
+                        loadNotesOnMap(webEngine, false, () -> {
+                            navigateToLocation(pendingLat, pendingLng, pendingNoteId, true);
+                            pendingLat = null;
+                            pendingLng = null;
+                            pendingNoteId = null;
+                        });
+                    });
+                } else {
+                     // Default load with fitBounds = true
+                    loadNotesOnMap(webEngine, true, null);
+                }
             } else if (newValue == Worker.State.FAILED) {
                 System.err.println("Failed to load map.html");
             }
         });
+    }
+    
+    /**
+     * Navigate to a specific location on the map with zoom animation
+     */
+    public void navigateToLocation(double lat, double lng, String noteId) {
+        navigateToLocation(lat, lng, noteId, false);
+    }
+
+    public void navigateToLocation(double lat, double lng, String noteId, boolean openDetail) {
+        WebEngine webEngine = mapWebView.getEngine();
+        if (webEngine.getLoadWorker().getState() == Worker.State.SUCCEEDED) {
+            String script = String.format("flyToLocation(%f, %f, '%s', %b);", lat, lng, noteId != null ? noteId : "", openDetail);
+            webEngine.executeScript(script);
+            System.out.println("Navigating to location: " + lat + ", " + lng + " (Auto-open: " + openDetail + ")");
+        } else {
+            // Store for later if map not loaded yet
+            pendingLat = lat;
+            pendingLng = lng;
+            pendingNoteId = noteId;
+        }
+    }
+    
+    /**
+     * Set pending location to navigate to when map loads
+     */
+    public void setPendingLocation(double lat, double lng, String noteId) {
+        this.pendingLat = lat;
+        this.pendingLng = lng;
+        this.pendingNoteId = noteId;
     }
     
     @FXML
@@ -71,7 +124,7 @@ public class MapController {
             webEngine.executeScript("setAddNoteMode(false)");
         }
     }
-    
+
     public void openNoteDetail(String noteId) {
         System.out.println("[Map] JavaConnector: Open Note " + noteId);
         Platform.runLater(() -> {
@@ -111,6 +164,14 @@ public class MapController {
         });
     }
     
+    public void openUserProfile(String firebaseUid) {
+        System.out.println("[Map] Open Profile: " + firebaseUid);
+        Platform.runLater(() -> {
+            UserInfoDialog dialog = new UserInfoDialog(firebaseUid, "User");
+            dialog.showAndWait();
+        });
+    }
+
     public void onMapClicked(double lat, double lng) {
         System.out.println("JavaConnector: Map Clicked at " + lat + ", " + lng);
         Platform.runLater(() -> {
@@ -168,17 +229,24 @@ public class MapController {
     }
 
     private void loadNotesOnMap(WebEngine webEngine) {
+        loadNotesOnMap(webEngine, true, null);
+    }
+    
+    private void loadNotesOnMap(WebEngine webEngine, boolean fitBounds, Runnable onComplete) {
         System.out.println("[Map] Loading notes...");
         apiService.getNotes().thenAccept(notes -> {
             try {
                 System.out.println("[Map] Received " + (notes != null ? notes.size() : 0) + " notes from API");
                 String notesJson = objectMapper.writeValueAsString(notes);
-                System.out.println("[Map] Notes JSON: " + notesJson);
+                // System.out.println("[Map] Notes JSON: " + notesJson); // Reduced logging
                 Platform.runLater(() -> {
                     try {
                         JSObject window = (JSObject) webEngine.executeScript("window");
-                        window.call("addNotes", notesJson);
-                        System.out.println("[Map] Executed addNotes script via JSObject.call");
+                        window.call("addNotes", notesJson, fitBounds);
+                        System.out.println("[Map] Executed addNotes (fitBounds: " + fitBounds + ")");
+                        if (onComplete != null) {
+                            onComplete.run();
+                        }
                     } catch (Exception e) {
                         System.err.println("[Map] Error executing script: " + e.getMessage());
                         e.printStackTrace();

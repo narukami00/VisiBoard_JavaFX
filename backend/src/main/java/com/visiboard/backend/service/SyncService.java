@@ -70,15 +70,55 @@ public class SyncService {
             noteData.put("location", new com.google.cloud.firestore.GeoPoint(note.getLat(), note.getLng()));
             noteData.put("userId", note.getUser().getFirebaseUid());
             noteData.put("userName", note.getUser().getName());
+            noteData.put("userProfilePic", note.getUser().getProfilePicUrl());
             noteData.put("likeCount", note.getLikesCount());
-            noteData.put("likedBy", note.getLikedByUsers() != null ? note.getLikedByUsers() : new java.util.ArrayList<>());
             noteData.put("commentsCount", note.getCommentsCount());
-            noteData.put("timestamp", com.google.cloud.Timestamp.now());
+            
+            // Image Data
+            if (note.getImageBase64() != null) {
+                noteData.put("imageBase64", note.getImageBase64());
+                noteData.put("imageWidth", note.getImageWidth());
+                noteData.put("imageHeight", note.getImageHeight());
+            }
+            
+            // CRITICAL FIX: Do NOT send 'likedBy' list here. It causes overwrites.
+            // Likes are handled atomically via updateNoteLikeInFirebase.
+            // noteData.put("likedBy", ...); 
 
-            String docId = note.getId().toString();
-            System.out.println("[Firebase] Syncing note with fields: note, lat, lon, location, userId, userName, likeCount, likedBy, commentsCount, timestamp");
-            db.collection("notes").document(docId).set(noteData).get();
-            System.out.println("[Firebase] ✓ Successfully synced note to Firebase");
+            String docId = note.getFirebaseId();
+            boolean isNewNote = (docId == null || docId.isEmpty());
+            
+            if (isNewNote) {
+                // New note from PC, generate ID
+                docId = db.collection("notes").document().getId();
+                note.setFirebaseId(docId);
+                // Save the firebaseId back to local DB
+                noteRepository.save(note);
+                
+                // Only set timestamp for NEW notes
+                if (note.getCreatedAt() != null) {
+                    noteData.put("timestamp", note.getCreatedAt().atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli());
+                } else {
+                    noteData.put("timestamp", System.currentTimeMillis());
+                }
+            } else {
+                // For existing notes, DO NOT touch the timestamp
+                // This prevents the "timestamp update on comment" bug
+            }
+            
+            System.out.println("[Firebase] Syncing note " + docId + " (isNew=" + isNewNote + ")");
+            
+            if (isNewNote) {
+                db.collection("notes").document(docId).set(noteData).get();
+            } else {
+                // For updates, use update() to avoid overwriting missing fields (like timestamp if we omitted it)
+                // But set() with Merge is better if we want to ensure fields exist. 
+                // However, standard set() overwrites everything not in the map.
+                // Let's use set(noteData, SetOptions.merge()) equivalent logic or just update specific fields.
+                // Since we removed timestamp/likedBy from map, set() would delete them if we don't use merge.
+                db.collection("notes").document(docId).set(noteData, com.google.cloud.firestore.SetOptions.merge()).get();
+            }
+            System.out.println("[Firebase] ✓ Successfully synced note to Firebase: " + docId);
         } catch (Exception e) {
             System.err.println("[Firebase] ✗ Failed to sync note to Firebase: " + e.getMessage());
             e.printStackTrace();
@@ -93,23 +133,87 @@ public class SyncService {
                 return;
             }
             
-            String noteDocId = note.getId().toString();
-            String commentId = comment.getId().toString();
+            String noteDocId = note.getFirebaseId();
+            if (noteDocId == null) {
+                System.out.println("[Firebase] Parent note has no Firebase ID, syncing note first...");
+                syncNoteToFirebase(note);
+                noteDocId = note.getFirebaseId();
+                if (noteDocId == null) {
+                    System.err.println("[Firebase] Failed to generate Firebase ID for parent note. Cannot sync comment.");
+                    return;
+                }
+            }
+            
+            String commentId = comment.getFirebaseId();
+            if (commentId == null || commentId.isEmpty()) {
+                commentId = java.util.UUID.randomUUID().toString(); // Or generate from Firestore
+                comment.setFirebaseId(commentId);
+                commentRepository.save(comment);
+            }
+            
+            String userId = comment.getUser().getFirebaseUid();
+            if (userId == null) {
+                System.err.println("[Firebase] Comment user has no Firebase UID. Cannot sync.");
+                return;
+            }
             
             Map<String, Object> commentData = new HashMap<>();
             // Only the exact fields Android uses: id, text, timestamp, userId, userName
             commentData.put("id", commentId);
             commentData.put("text", comment.getContent());
-            commentData.put("userId", comment.getUser().getFirebaseUid());
+            commentData.put("userId", userId);
             commentData.put("userName", comment.getUser().getName());
-            commentData.put("timestamp", com.google.cloud.Timestamp.now());
+            // Android uses Long for timestamp
+            commentData.put("timestamp", System.currentTimeMillis());
             
-            System.out.println("[Firebase] Syncing comment with fields: id, text, timestamp, userId, userName");
+            String path = "notes/" + noteDocId + "/comments/" + commentId;
+            System.out.println("[Firebase] Syncing comment to path: " + path);
+            
             db.collection("notes").document(noteDocId)
                 .collection("comments").document(commentId).set(commentData).get();
-            System.out.println("[Firebase] ✓ Successfully synced comment to Firebase");
+            System.out.println("[Firebase] ✓ Successfully synced comment to Firebase: " + commentId);
         } catch (Exception e) {
             System.err.println("[Firebase] ✗ Failed to sync comment to Firebase: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    public void updateNoteLikeInFirebase(String noteId, String userId, boolean isLiked) {
+        try {
+            Firestore db = FirestoreClient.getFirestore();
+            if (db == null) return;
+            
+            // Lookup note to get firebaseId if it's a UUID
+            String firebaseId = noteId;
+            try {
+                java.util.UUID uuid = java.util.UUID.fromString(noteId);
+                Note note = noteRepository.findById(uuid).orElse(null);
+                if (note != null && note.getFirebaseId() != null) {
+                    firebaseId = note.getFirebaseId();
+                }
+            } catch (IllegalArgumentException e) {
+                // Not a UUID, assume it's already a firebaseId
+            }
+            
+            com.google.cloud.firestore.DocumentReference docRef = db.collection("notes").document(firebaseId);
+            
+            if (isLiked) {
+                // Add user to likedBy array and increment count
+                docRef.update(
+                    "likedBy", com.google.cloud.firestore.FieldValue.arrayUnion(userId),
+                    "likeCount", com.google.cloud.firestore.FieldValue.increment(1)
+                ).get();
+                System.out.println("[Firebase] Added like for user " + userId + " to note " + firebaseId);
+            } else {
+                // Remove user from likedBy array and decrement count
+                docRef.update(
+                    "likedBy", com.google.cloud.firestore.FieldValue.arrayRemove(userId),
+                    "likeCount", com.google.cloud.firestore.FieldValue.increment(-1)
+                ).get();
+                System.out.println("[Firebase] Removed like for user " + userId + " from note " + firebaseId);
+            }
+        } catch (Exception e) {
+            System.err.println("[Firebase] Failed to update like status: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -125,12 +229,69 @@ public class SyncService {
             System.out.println("[Firebase] Deleting note from Firebase: " + noteId);
             
             // Delete the note document and all its subcollections
-            db.collection("notes").document(noteId).delete().get();
-            System.out.println("[Firebase] ✓ Deleted note from Firebase: " + noteId);
+            // We need to find the note by ID first to get its firebaseId if passed as UUID string
+            // But here we expect noteId to be the firebaseId if called correctly. 
+            // However, the controller passes UUID.toString(). We need to fix that or lookup.
+            
+            // Lookup note to get firebaseId if it's a UUID
+            String firebaseId = noteId;
+            try {
+                java.util.UUID uuid = java.util.UUID.fromString(noteId);
+                // It's a UUID, look it up
+                Note note = noteRepository.findById(uuid).orElse(null);
+                if (note != null && note.getFirebaseId() != null) {
+                    firebaseId = note.getFirebaseId();
+                }
+            } catch (IllegalArgumentException e) {
+                // Not a UUID, assume it's already a firebaseId
+            }
+            
+            System.out.println("[Firebase] Deleting note from Firebase: " + firebaseId);
+
+            // Recursively delete subcollections (e.g., comments)
+            Iterable<com.google.cloud.firestore.CollectionReference> collections = 
+                db.collection("notes").document(firebaseId).listCollections();
+            
+            for (com.google.cloud.firestore.CollectionReference collection : collections) {
+                deleteCollection(collection, 50);
+            }
+            
+            // Delete the note document
+            db.collection("notes").document(firebaseId).delete().get();
+            System.out.println("[Firebase] ✓ Deleted note from Firebase: " + firebaseId);
             
         } catch (Exception e) {
             System.err.println("[Firebase] ✗ Failed to delete note from Firebase: " + e.getMessage());
             e.printStackTrace();
+        }
+    }
+
+    /**
+     * Helper method to delete a collection by deleting all documents in batches.
+     */
+    private void deleteCollection(com.google.cloud.firestore.CollectionReference collection, int batchSize) {
+        try {
+            // Retrieve a small batch of documents to avoid out-of-memory errors
+            com.google.api.core.ApiFuture<com.google.cloud.firestore.QuerySnapshot> future = collection.limit(batchSize).get();
+            int deleted = 0;
+            // Future.get() blocks on response
+            java.util.List<com.google.cloud.firestore.QueryDocumentSnapshot> documents = future.get().getDocuments();
+            for (com.google.cloud.firestore.QueryDocumentSnapshot document : documents) {
+                // Recursively delete subcollections of this document if any (though for comments likely not needed, but good practice)
+                Iterable<com.google.cloud.firestore.CollectionReference> subCollections = document.getReference().listCollections();
+                for (com.google.cloud.firestore.CollectionReference subCollection : subCollections) {
+                    deleteCollection(subCollection, batchSize);
+                }
+                
+                document.getReference().delete();
+                ++deleted;
+            }
+            if (deleted >= batchSize) {
+                // retrieve and delete another batch
+                deleteCollection(collection, batchSize);
+            }
+        } catch (Exception e) {
+            System.err.println("Error deleting collection " + collection.getId() + ": " + e.getMessage());
         }
     }
 
@@ -155,6 +316,8 @@ public class SyncService {
         
         try {
             // Clear all local data - Firebase is the source of truth
+            // Delete notifications first because they reference users and notes
+            notificationRepository.deleteAll();
             commentRepository.deleteAll();
             noteLikeRepository.deleteAll();
             messageRepository.deleteAll();
@@ -194,6 +357,37 @@ public class SyncService {
                 
                 user.setProfilePicUrl(pic);
                 
+                user.setProfilePicUrl(pic);
+                
+                // Stats Mapping
+                Long likes = document.getLong("totalLikes");
+                user.setTotalLikesReceived(likes != null ? likes.intValue() : 0);
+                
+                Long followers = document.getLong("followersCount");
+                user.setFollowersCount(followers != null ? followers.intValue() : 0);
+                
+                Long following = document.getLong("followingCount");
+                user.setFollowingCount(following != null ? following.intValue() : 0);
+                
+                // Timestamp Mapping
+                Long created = document.getLong("createdAt");
+                if (created != null) {
+                    user.setCreatedAt(java.time.LocalDateTime.ofInstant(
+                        java.time.Instant.ofEpochMilli(created), 
+                        java.time.ZoneId.systemDefault()
+                    ));
+                } else {
+                    // Try parsing from string if legacy
+                    try {
+                        String createdStr = document.getString("createdAt");
+                        if (createdStr != null) {
+                           user.setCreatedAt(java.time.LocalDateTime.parse(createdStr));
+                        }
+                    } catch(Exception e) {
+                        // Ignore
+                    }
+                }
+                
                 userRepository.save(user);
             });
             System.out.println("Users synced from Firebase");
@@ -206,6 +400,7 @@ public class SyncService {
             db.collection("notes").get().get().getDocuments().forEach(document -> {
                 try {
                     Note note = new Note();
+                    note.setFirebaseId(document.getId());
                     
                     // Content Mapping
                     String content = document.getString("note"); // Android uses "note"
@@ -255,6 +450,16 @@ public class SyncService {
                     Long comments = document.getLong("commentsCount");
                     note.setCommentsCount(comments != null ? comments.intValue() : 0);
 
+                    // Image Mapping
+                    String imgBase64 = document.getString("imageBase64");
+                    if (imgBase64 != null) {
+                        note.setImageBase64(imgBase64);
+                        Long w = document.getLong("imageWidth");
+                        Long h = document.getLong("imageHeight");
+                        note.setImageWidth(w != null ? w.intValue() : null);
+                        note.setImageHeight(h != null ? h.intValue() : null);
+                    }
+
                     // User Mapping
                     String userId = document.getString("userId");
                     if (userId != null) {
@@ -282,6 +487,31 @@ public class SyncService {
                             
                             note.setUser(tempUser);
                             noteRepository.save(note);
+                        }
+                    }
+                    
+                    // LikedBy Mapping (CRITICAL for persistence)
+                    java.util.List<String> likedBy = (java.util.List<String>) document.get("likedBy");
+                    if (likedBy != null) {
+                        for (String likerUid : likedBy) {
+                            try {
+                                User liker = userRepository.findByFirebaseUid(likerUid);
+                                if (liker == null) {
+                                    // Create temp user for liker if missing
+                                    liker = new User();
+                                    liker.setFirebaseUid(likerUid);
+                                    liker.setEmail("liker_" + likerUid + "@user.com");
+                                    liker.setName("Unknown Liker");
+                                    liker.setProfilePicUrl("https://ui-avatars.com/api/?name=UL&background=random");
+                                    userRepository.save(liker);
+                                }
+                                
+                                // Create local NoteLike
+                                com.visiboard.backend.model.NoteLike noteLike = new com.visiboard.backend.model.NoteLike(liker, note);
+                                noteLikeRepository.save(noteLike);
+                            } catch (Exception e) {
+                                System.err.println("Error syncing like for user " + likerUid + ": " + e.getMessage());
+                            }
                         }
                     }
                 } catch (Exception e) {
@@ -357,6 +587,7 @@ public class SyncService {
                             }
                             
                             com.visiboard.backend.model.Comment comment = new com.visiboard.backend.model.Comment();
+                            comment.setFirebaseId(commentDoc.getId());
                             comment.setContent(text);
                             comment.setNote(dbNote);
                             
@@ -414,5 +645,206 @@ public class SyncService {
             System.err.println("Fatal error syncing comments: " + e.getMessage());
             e.printStackTrace();
         }
+        
+        // Sync Notifications
+        syncNotificationsFromFirebase();
+        
+        // Sync Messages
+        syncMessagesFromFirebase();
+    }
+    public void syncNotificationsFromFirebase() {
+        System.out.println("Starting Notification sync from Firebase...");
+        Firestore db = FirestoreClient.getFirestore();
+        if (db == null) return;
+        
+        try {
+            // First, delete all existing notifications to avoid stale data (optional, but safer for full valid sync)
+            try {
+                notificationRepository.deleteAll();
+            } catch (Exception e) {
+                System.err.println("Error deleting existing notifications: " + e.getMessage());
+            }
+            
+            // Fetch all notifications from Firebase
+            java.util.List<com.google.cloud.firestore.QueryDocumentSnapshot> documents = 
+                db.collection("notifications").get().get().getDocuments();
+            
+            System.out.println("Found " + documents.size() + " notifications in Firebase");
+            
+            int syncedCount = 0;
+            
+            for (com.google.cloud.firestore.QueryDocumentSnapshot doc : documents) {
+                try {
+                    String type = doc.getString("type");
+                    String toUserId = doc.getString("toUserId");
+                    String fromUserId = doc.getString("fromUserId");
+                    String noteId = doc.getString("noteId");
+                    Long timestamp = doc.getLong("timestamp");
+                    Boolean read = doc.getBoolean("read");
+                    
+                    if (toUserId == null || fromUserId == null) continue;
+                    
+                    // Find Recipient
+                    User recipient = userRepository.findByFirebaseUid(toUserId);
+                    if (recipient == null) {
+                        // Create temp recipient? Or skip? Better to skip if user doesn't exist locally yet
+                        // But maybe we should fetch them. For now, assume users are synced.
+                        continue; 
+                    }
+                    
+                    // Find Sender
+                    User sender = userRepository.findByFirebaseUid(fromUserId);
+                    if (sender == null) {
+                        sender = new User();
+                        sender.setFirebaseUid(fromUserId);
+                        sender.setName(doc.getString("fromUserName") != null ? doc.getString("fromUserName") : "Unknown");
+                        sender.setEmail("temp_sender_" + fromUserId + "@user.com");
+                        String pic = doc.getString("fromUserProfilePic");
+                        // Fix base64 prefixes if needed
+                        if (pic != null && !pic.startsWith("http") && !pic.startsWith("data:image/")) {
+                            if (pic.startsWith("/9j/") || pic.startsWith("iVBOR") || pic.startsWith("R0lGOD")) {
+                                pic = "data:image/jpeg;base64," + pic;
+                            }
+                        }
+                        sender.setProfilePicUrl(pic);
+                        sender = userRepository.save(sender);
+                    }
+                    
+                    // Find Note
+                    Note note = null;
+                    if (noteId != null) {
+                        try {
+                            // First try as UUID
+                            java.util.UUID uuid = java.util.UUID.fromString(noteId);
+                            note = noteRepository.findById(uuid).orElse(null);
+                        } catch (IllegalArgumentException e) {
+                            // If not UUID, it might be Firebase ID, but we strictly store UUIDs as IDs in Postgres
+                            // and FirebaseID as a field. So we need to find by firebaseId
+                            note = noteRepository.findByFirebaseId(noteId);
+                        }
+                    }
+                    
+                    com.visiboard.backend.model.Notification notification = new com.visiboard.backend.model.Notification();
+                    notification.setRecipient(recipient);
+                    notification.setSender(sender);
+                    notification.setNote(note);
+                    notification.setType(type != null ? type.toUpperCase() : "UNKNOWN");
+                    notification.setMessage(doc.getString("messageText")); // Assuming messageText field exists for messages
+                    
+                    // If message is null, construct based on type (PC client does this, but backend should store raw if available)
+                    // The Android model has 'messageText'.
+                    
+                    notification.setRead(read != null ? read : false);
+                    
+                    if (timestamp != null) {
+                        notification.setCreatedAt(java.time.LocalDateTime.ofInstant(
+                            java.time.Instant.ofEpochMilli(timestamp), 
+                            java.time.ZoneId.systemDefault()
+                        ));
+                    } else {
+                        notification.setCreatedAt(java.time.LocalDateTime.now());
+                    }
+                    
+                    notificationRepository.save(notification);
+                    syncedCount++;
+                    
+                } catch (Exception e) {
+                    System.err.println("Error syncing notification " + doc.getId() + ": " + e.getMessage());
+                }
+            }
+            
+            System.out.println("Synced " + syncedCount + " notifications");
+            
+        } catch (Exception e) {
+            System.err.println("Fatal error syncing notifications: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    public void syncMessagesFromFirebase() {
+        System.out.println("Starting Message sync from Firebase...");
+        Firestore db = FirestoreClient.getFirestore();
+        if (db == null) return;
+        
+        try {
+            // Fetch all messages from Firebase
+            java.util.List<com.google.cloud.firestore.QueryDocumentSnapshot> documents = 
+                db.collection("messages").get().get().getDocuments();
+            
+            System.out.println("Found " + documents.size() + " messages in Firebase");
+            
+            int syncedCount = 0;
+            
+            for (com.google.cloud.firestore.QueryDocumentSnapshot doc : documents) {
+                try {
+                    String fromUserId = doc.getString("fromUserId");
+                    String toUserId = doc.getString("toUserId");
+                    String messageText = doc.getString("messageText");
+                    Long timestamp = doc.getLong("timestamp");
+                    Boolean read = doc.getBoolean("read");
+                    Boolean anonymous = doc.getBoolean("anonymous");
+                    
+                    if (fromUserId == null || toUserId == null) continue;
+                    
+                    // Find Sender
+                    User sender = userRepository.findByFirebaseUid(fromUserId);
+                    if (sender == null) {
+                        sender = new User();
+                        sender.setFirebaseUid(fromUserId);
+                        sender.setName(doc.getString("fromUserName") != null ? doc.getString("fromUserName") : "Unknown");
+                        sender.setEmail("temp_sender_" + fromUserId + "@user.com");
+                        String pic = doc.getString("fromUserProfilePic");
+                        if (pic != null && !pic.startsWith("http") && !pic.startsWith("data:image/")) {
+                             if (pic.startsWith("/9j/") || pic.startsWith("iVBOR") || pic.startsWith("R0lGOD")) {
+                                 pic = "data:image/jpeg;base64," + pic;
+                             }
+                        }
+                        sender.setProfilePicUrl(pic);
+                        sender = userRepository.save(sender);
+                    }
+                    
+                    // Find Recipient
+                    User recipient = userRepository.findByFirebaseUid(toUserId);
+                    if (recipient == null) {
+                        // If recipient missing, try to create temp? Or skip?
+                        // Let's create temp to ensure message is saved
+                        recipient = new User();
+                        recipient.setFirebaseUid(toUserId);
+                        recipient.setName("Unknown Recipient");
+                        recipient.setEmail("temp_recipient_" + toUserId + "@user.com");
+                        recipient = userRepository.save(recipient);
+                    }
+                    
+                    com.visiboard.backend.model.Message message = new com.visiboard.backend.model.Message();
+                    message.setFirebaseId(doc.getId());
+                    message.setFromUser(sender);
+                    message.setToUser(recipient);
+                    message.setText(messageText);
+                    message.setRead(read != null ? read : false);
+                    message.setAnonymous(anonymous != null ? anonymous : false);
+                    
+                    if (timestamp != null) {
+                        message.setCreatedAt(java.time.LocalDateTime.ofInstant(
+                            java.time.Instant.ofEpochMilli(timestamp), 
+                            java.time.ZoneId.systemDefault()
+                        ));
+                    } else {
+                        message.setCreatedAt(java.time.LocalDateTime.now());
+                    }
+                    
+                    messageRepository.save(message);
+                    syncedCount++;
+                    
+                } catch (Exception e) {
+                    System.err.println("Error syncing message " + doc.getId() + ": " + e.getMessage());
+                }
+            }
+            
+            System.out.println("Synced " + syncedCount + " messages");
+            
+        } catch (Exception e) {
+            System.err.println("Fatal error syncing messages: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 }
+

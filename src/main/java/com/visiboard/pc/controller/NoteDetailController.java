@@ -23,6 +23,10 @@ public class NoteDetailController {
     @FXML private Label commentsCountLabel;
     @FXML private VBox commentsContainer;
     @FXML private TextArea commentInput;
+    
+    @FXML private javafx.scene.layout.StackPane imageContainer;
+    @FXML private ImageView noteImageView;
+    @FXML private ImageView currentUserAvatar;
 
     private Note note;
     private ApiService apiService;
@@ -123,32 +127,131 @@ public class NoteDetailController {
         timestampLabel.setVisible(false);
         
         // Update like button based on current user's like status
-        String currentUserEmail = UserSession.getInstance().getUserEmail();
+        String currentUserFirebaseUid = UserSession.getInstance().getFirebaseUid();
         boolean isLikedByCurrentUser = note.getLikedByUsers() != null && 
-                                       currentUserEmail != null &&
-                                       note.getLikedByUsers().contains(currentUserEmail);
+                                       currentUserFirebaseUid != null &&
+                                       note.getLikedByUsers().contains(currentUserFirebaseUid);
+        
+        System.out.println("[Like] Current user Firebase UID: " + currentUserFirebaseUid);
+        System.out.println("[Like] Note liked by users: " + note.getLikedByUsers());
+        System.out.println("[Like] Is liked by current user: " + isLikedByCurrentUser);
         
         likesCountLabel.setText(note.getLikesCount() + " likes");
         
+        // Clear all style classes first
+        likeButton.getStyleClass().removeAll("modern-button", "modern-button-liked");
+        
         if (isLikedByCurrentUser) {
-            likeButton.setText("Liked");
-            likeButton.getStyleClass().remove("modern-button");
-            if (!likeButton.getStyleClass().contains("modern-button-liked")) {
-                likeButton.getStyleClass().add("modern-button-liked");
-            }
+            likeButton.setText("\u2764 Liked");
+            likeButton.getStyleClass().add("modern-button-liked");
         } else {
-            likeButton.setText("Like");
-            likeButton.getStyleClass().remove("modern-button-liked");
-            if (!likeButton.getStyleClass().contains("modern-button")) {
-                likeButton.getStyleClass().add("modern-button");
-            }
+            likeButton.setText("\u2661 Like");
+            likeButton.getStyleClass().add("modern-button");
         }
         
-        // Update comments count
         if (note.getCommentsCount() > 0) {
             commentsCountLabel.setText(note.getCommentsCount() + " comments");
         } else {
             commentsCountLabel.setText("0 comments");
+        }
+        
+        // Handle Note Image
+        String base64Image = note.getImageBase64();
+        if (base64Image != null && !base64Image.isEmpty()) {
+            System.out.println("[Image Debug] Found image data, length: " + base64Image.length());
+            imageContainer.setVisible(true);
+            imageContainer.setManaged(true);
+            
+            try {
+                String cleanBase64 = base64Image;
+                // Remove data:image/jpeg;base64, prefix if present
+                if (base64Image.contains(",")) {
+                    String[] parts = base64Image.split(",", 2);
+                    if (parts.length > 1) {
+                         cleanBase64 = parts[1];
+                    }
+                }
+                
+                // Clean any whitespace/newlines just in case
+                cleanBase64 = cleanBase64.replaceAll("\\s", "");
+                
+                byte[] imageBytes = java.util.Base64.getDecoder().decode(cleanBase64);
+                javafx.scene.image.Image image = new javafx.scene.image.Image(new java.io.ByteArrayInputStream(imageBytes));
+                
+                if (image.isError()) {
+                    System.err.println("[Image Debug] Image loading error: " + image.getException());
+                } else {
+                    System.out.println("[Image Debug] Image decoded successfully: " + image.getWidth() + "x" + image.getHeight());
+                }
+                
+                noteImageView.setImage(image);
+                
+                // Adjust width to fit container (approx 550px available width in 600px window)
+                double maxWidth = 550;
+                if (image.getWidth() > maxWidth) {
+                    noteImageView.setFitWidth(maxWidth);
+                } else {
+                    noteImageView.setFitWidth(image.getWidth());
+                }
+                
+            } catch (Exception e) {
+                System.err.println("[Image] Error decoding base64 image: " + e.getMessage());
+                e.printStackTrace();
+                imageContainer.setVisible(false);
+                imageContainer.setManaged(false);
+            }
+        } else {
+            System.out.println("[Image Debug] No image data found in note.");
+            imageContainer.setVisible(false);
+            imageContainer.setManaged(false);
+        }
+        
+        // Setup current user avatar in footer
+        loadCurrentUserAvatar();
+        
+        // Add click handlers for profile
+        if (note.getUser() != null && note.getUser().getFirebaseUid() != null) {
+            String uid = note.getUser().getFirebaseUid();
+            String uName = note.getUser().getName();
+            
+            javafx.event.EventHandler<javafx.scene.input.MouseEvent> openProfileHandler = e -> {
+                System.out.println("[NoteDetail] User clicked profile: " + uid);
+                javafx.application.Platform.runLater(() -> {
+                    try {
+                        com.visiboard.pc.ui.UserInfoDialog dialog = new com.visiboard.pc.ui.UserInfoDialog(uid, uName);
+                        dialog.showAndWait();
+                    } catch (Exception ex) {
+                        System.err.println("Error opening profile: " + ex.getMessage());
+                        ex.printStackTrace();
+                    }
+                });
+            };
+            
+            userAvatar.setOnMouseClicked(openProfileHandler);
+            userAvatar.setCursor(javafx.scene.Cursor.HAND);
+            
+            userNameLabel.setOnMouseClicked(openProfileHandler);
+            userNameLabel.setCursor(javafx.scene.Cursor.HAND);
+        }
+    }
+    
+    private void loadCurrentUserAvatar() {
+        String picUrl = UserSession.getInstance().getUserProfilePic();
+        String name = UserSession.getInstance().getUserName();
+        if (picUrl != null && !picUrl.isEmpty()) {
+             currentUserAvatar.setVisible(true);
+             currentUserAvatar.setManaged(true);
+             // Clip circular
+             Circle clip = new Circle(16, 16, 16);
+             currentUserAvatar.setClip(clip);
+             
+             com.visiboard.pc.service.ImageCacheService.getInstance()
+                .getImage(picUrl)
+                .thenAccept(image -> {
+                    javafx.application.Platform.runLater(() -> {
+                        if (image != null) cropAndSetImage(currentUserAvatar, image);
+                    });
+                });
         }
     }
     
@@ -232,7 +335,7 @@ public class NoteDetailController {
         VBox contentBox = new VBox(4);
         
         Label nameLabel = new Label(userName);
-        nameLabel.setStyle("-fx-font-weight: bold;");
+        nameLabel.setStyle("-fx-font-weight: bold; -fx-cursor: hand;");
         
         Label commentLabel = new Label(comment.getContent() != null ? comment.getContent() : "");
         commentLabel.setWrapText(true);
@@ -240,6 +343,24 @@ public class NoteDetailController {
         
         contentBox.getChildren().addAll(nameLabel, commentLabel);
         commentBox.getChildren().addAll(avatar, contentBox);
+        
+        // Add click handlers for profile dialog
+        if (comment.getUser() != null && comment.getUser().getFirebaseUid() != null) {
+            String uid = comment.getUser().getFirebaseUid();
+            String uName = userName;
+            javafx.event.EventHandler<javafx.scene.input.MouseEvent> openProfileHandler = e -> {
+                javafx.application.Platform.runLater(() -> {
+                     try {
+                         com.visiboard.pc.ui.UserInfoDialog dialog = new com.visiboard.pc.ui.UserInfoDialog(uid, uName);
+                         dialog.showAndWait();
+                     } catch (Exception ex) { ex.printStackTrace(); }
+                });
+            };
+            avatar.setOnMouseClicked(openProfileHandler);
+            avatar.setCursor(javafx.scene.Cursor.HAND);
+            nameLabel.setOnMouseClicked(openProfileHandler); // Already set cursor hand above
+        }
+        
         commentsContainer.getChildren().add(commentBox);
     }
     
@@ -274,11 +395,23 @@ public class NoteDetailController {
     @FXML
     private void handleLike() {
         if (note == null) return;
+        System.out.println("[Like] Toggling like for note: " + note.getId());
         apiService.toggleLike(note.getId().toString()).thenAccept(updatedNote -> {
             if (updatedNote != null) {
+                System.out.println("[Like] Received updated note with " + updatedNote.getLikesCount() + " likes");
+                System.out.println("[Like] Updated likedByUsers: " + updatedNote.getLikedByUsers());
                 this.note = updatedNote;
-                javafx.application.Platform.runLater(this::updateUI);
+                javafx.application.Platform.runLater(() -> {
+                    System.out.println("[Like] Updating UI after like toggle");
+                    updateUI();
+                });
+            } else {
+                System.err.println("[Like] Received null updated note");
             }
+        }).exceptionally(e -> {
+            System.err.println("[Like] Error toggling like: " + e.getMessage());
+            e.printStackTrace();
+            return null;
         });
     }
 
