@@ -193,13 +193,41 @@ public class UserInfoDialog extends Dialog<Void> {
             
             content.getChildren().add(avatarImageView);
 
-            // 2. Name
+            // 2. Name & Status Badge
             String displayName = (user.getName() != null && !user.getName().isEmpty()) ? user.getName() : "Unknown User";
             System.out.println("[UserInfoDialog] Displaying Name: " + displayName);
+            
+            HBox nameContainer = new HBox(10);
+            nameContainer.setAlignment(Pos.CENTER);
+            
             Label nameLabel = new Label(displayName);
             nameLabel.setFont(Font.font("System", FontWeight.BOLD, 24));
             nameLabel.setStyle("-fx-text-fill: white;");
-            content.getChildren().add(nameLabel);
+            
+            // Status text
+            Label statusLabel = new Label();
+             statusLabel.setStyle("-fx-text-fill: white; -fx-font-size: 12px;");
+            
+            Circle statusBadge = new Circle(8);
+            if (user.isBanned()) {
+                statusBadge.setFill(javafx.scene.paint.Color.RED);
+                 String expiry = user.getBanExpiry() > 0 ? new java.util.Date(user.getBanExpiry()).toString() : "Permanent";
+                 statusLabel.setText("Banned until " + expiry);
+            } else if (user.isRestricted()) {
+                statusBadge.setFill(javafx.scene.paint.Color.ORANGE); // Yellow/Orange
+                 String expiry = user.getRestrictionExpiry() > 0 ? new java.util.Date(user.getRestrictionExpiry()).toString() : "Permanent";
+                 statusLabel.setText("Restricted until " + expiry);
+            } else {
+                statusBadge.setFill(javafx.scene.paint.Color.GREEN);
+                statusLabel.setText("Active");
+            }
+            
+            nameContainer.getChildren().addAll(nameLabel, statusBadge);
+            // Add status text below name
+            VBox nameBox = new VBox(5);
+            nameBox.setAlignment(Pos.CENTER);
+            nameBox.getChildren().addAll(nameContainer, statusLabel);
+            content.getChildren().add(nameBox);
 
             // 3. Stats Grid
             System.out.println("[UserInfoDialog] Displaying Stats");
@@ -211,18 +239,124 @@ public class UserInfoDialog extends Dialog<Void> {
             statsBox.getChildren().add(createStatItem("Following", String.valueOf(user.getFollowingCount())));
             content.getChildren().add(statsBox);
 
-            // 4. Joined Date
-            if (user.getCreatedAt() != null) {
-                try {
-                    String dateStr = user.getCreatedAt(); 
-                    if (dateStr.length() > 10) dateStr = dateStr.substring(0, 10);
-                    Label joinedLabel = new Label("Joined " + dateStr);
-                    joinedLabel.setStyle("-fx-text-fill: #808080; -fx-font-size: 14px;");
-                    content.getChildren().add(joinedLabel);
-                } catch (Exception e) {}
-            }
+            // 4. Admin Actions
+            HBox actionsBox = new HBox(10);
+            actionsBox.setAlignment(Pos.CENTER);
+            actionsBox.setStyle("-fx-padding: 10 0 10 0;");
             
-            // 5. Follow Button (if not self)
+            Button warnBtn = new Button("Warn User");
+            warnBtn.setStyle("-fx-background-color: #f1c40f; -fx-text-fill: black; -fx-font-weight: bold;");
+            warnBtn.setOnAction(e -> {
+                com.visiboard.pc.services.DatabaseService.warnUser(user.getId());
+                warnBtn.setText("Warned");
+                warnBtn.setDisable(true);
+            });
+            
+            Button restrictBtn = new Button(user.isRestricted() ? "Unrestrict" : "Restrict");
+            restrictBtn.setStyle("-fx-background-color: #e67e22; -fx-text-fill: white; -fx-font-weight: bold;");
+            restrictBtn.setOnAction(e -> {
+                if (user.isRestricted()) {
+                    // Unrestrict
+                    com.visiboard.pc.services.DatabaseService.updateUserStatus(user.getId(), "restricted", false, 0);
+                    com.visiboard.pc.services.DatabaseService.notifyUser(user.getId(), "Restriction removed.");
+                    restrictBtn.setText("Restrict");
+                    user.setRestricted(false);
+                } else {
+                     // Restrict with duration
+                     long expiry = showDurationDialog("Restrict");
+                     if (expiry != -1) {
+                         com.visiboard.pc.services.DatabaseService.updateUserStatus(user.getId(), "restricted", true, expiry);
+                         String durationStr = expiry == 0 ? "permanently" : "until " + new java.util.Date(expiry).toString();
+                         com.visiboard.pc.services.DatabaseService.notifyUser(user.getId(), "Restricted " + durationStr);
+                         restrictBtn.setText("Unrestrict");
+                         user.setRestricted(true);
+                     }
+                }
+                updateStatusBadge(user, statusBadge, statusLabel);
+            });
+            
+            Button banBtn = new Button(user.isBanned() ? "Unban" : "Ban");
+            banBtn.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-weight: bold;");
+            banBtn.setOnAction(e -> {
+                 if (user.isBanned()) {
+                     com.visiboard.pc.services.DatabaseService.updateUserStatus(user.getId(), "banned", false, 0);
+                     com.visiboard.pc.services.DatabaseService.notifyUser(user.getId(), "Unbanned.");
+                     banBtn.setText("Ban");
+                     user.setBanned(false);
+                 } else {
+                     long expiry = showDurationDialog("Ban");
+                     if (expiry != -1) {
+                         com.visiboard.pc.services.DatabaseService.updateUserStatus(user.getId(), "banned", true, expiry);
+                         String durationStr = expiry == 0 ? "permanently" : "until " + new java.util.Date(expiry).toString();
+                         com.visiboard.pc.services.DatabaseService.notifyUser(user.getId(), "Banned " + durationStr);
+                         banBtn.setText("Unban");
+                         user.setBanned(true);
+                     }
+                 }
+                 updateStatusBadge(user, statusBadge, statusLabel);
+            });
+
+            actionsBox.getChildren().addAll(warnBtn, restrictBtn, banBtn);
+            content.getChildren().add(actionsBox);
+            
+            getDialogPane().setContent(content);
+
+            
+            getDialogPane().setStyle("-fx-background-color: #2c2c44;");
+
+
+
+
+            // 5. User Notes Grid
+            Label notesHeader = new Label("User Notes");
+            notesHeader.setStyle("-fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 16px; -fx-padding: 10 0 0 0;");
+            content.getChildren().add(notesHeader);
+            
+            ScrollPane gridScroll = new ScrollPane();
+            gridScroll.setPrefHeight(300);
+            gridScroll.setFitToWidth(true);
+            gridScroll.setStyle("-fx-background: #1a1a2e; -fx-border-color: transparent;");
+            
+            javafx.scene.layout.FlowPane notesGrid = new javafx.scene.layout.FlowPane();
+            notesGrid.setHgap(10);
+            notesGrid.setVgap(10);
+            notesGrid.setPadding(new javafx.geometry.Insets(5));
+            notesGrid.setAlignment(Pos.TOP_LEFT);
+            notesGrid.setStyle("-fx-background-color: #1a1a2e;");
+            
+            gridScroll.setContent(notesGrid);
+            content.getChildren().add(gridScroll);
+            
+            // Fetch Notes
+            new Thread(() -> {
+                java.util.List<com.visiboard.pc.model.Note> notes = com.visiboard.pc.services.DatabaseService.getNotesByUserId(user.getId());
+                Platform.runLater(() -> {
+                    if (notes.isEmpty()) {
+                        notesGrid.getChildren().add(new Label("No notes found for this user."));
+                    } else {
+                        for (com.visiboard.pc.model.Note note : notes) {
+                             notesGrid.getChildren().add(createNoteCard(note));
+                        }
+                    }
+                });
+            }).start();
+
+            // 6. Joined Date (moved below)
+            Label joinedLabel = new Label(); 
+            joinedLabel.setStyle("-fx-text-fill: #808080; -fx-font-size: 14px;");
+            if (user.getCreatedAt() > 0) {
+                try {
+                    String dateStr = new java.util.Date(user.getCreatedAt()).toString();
+                    joinedLabel.setText("Joined " + dateStr);
+                } catch (Exception e) {
+                    joinedLabel.setText("Joined recently");
+                }
+            } else {
+                joinedLabel.setText("Joined recently"); 
+            }
+            content.getChildren().add(joinedLabel); 
+            
+            // 7. Follow Button (if not self) - kept as is but renamed section count
             String myUid = UserSession.getInstance().getFirebaseUid();
             if (myUid != null && !myUid.equals(user.getFirebaseUid())) {
                  Button followBtn = new Button("Loading...");
@@ -280,6 +414,141 @@ public class UserInfoDialog extends Dialog<Void> {
         }
     }
 
+    private VBox createNoteCard(com.visiboard.pc.model.Note note) {
+        VBox card = new VBox(5);
+        card.setPrefWidth(100);
+        card.setPrefHeight(120); // Slightly shorter
+        card.setStyle("-fx-background-color: #252a34; -fx-background-radius: 8; -fx-padding: 0; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 5, 0, 0, 2);");
+        card.setAlignment(Pos.TOP_CENTER);
+        card.setCursor(javafx.scene.Cursor.HAND);
+        
+        // Image Container for Clipping
+        javafx.scene.layout.StackPane imgContainer = new javafx.scene.layout.StackPane();
+        imgContainer.setPrefSize(100, 100);
+        imgContainer.setMaxSize(100, 100);
+        // Clip to rounded top corners
+        javafx.scene.shape.Rectangle clip = new javafx.scene.shape.Rectangle(100, 100);
+        clip.setArcWidth(8);
+        clip.setArcHeight(8);
+        imgContainer.setClip(clip);
+
+        ImageView imgView = new ImageView();
+        imgView.setFitWidth(100);
+        imgView.setFitHeight(100);
+        imgView.setPreserveRatio(true);
+        
+        boolean hasImage = false;
+        String imgUrl = note.getImageUrl();
+        if (imgUrl != null && !imgUrl.isEmpty()) {
+            try {
+                Image img;
+                if (imgUrl.startsWith("http")) {
+                    img = new Image(imgUrl, 150, 150, true, true, true); // Load slightly larger for crispness
+                } else {
+                     String clean = imgUrl.contains(",") ? imgUrl.split(",")[1] : imgUrl;
+                     clean = clean.replaceAll("\\s", "");
+                     byte[] b = java.util.Base64.getDecoder().decode(clean);
+                     img = new Image(new java.io.ByteArrayInputStream(b));
+                }
+                
+                if (img != null) {
+                    imgView.setImage(img);
+                    
+                    // True Center Crop Logic (Aspect Fill)
+                    double imgW = img.getWidth();
+                    double imgH = img.getHeight();
+                    double wrapperSize = 100.0;
+                    
+                    if (imgW > 0 && imgH > 0) {
+                         // Scale such that the smaller dimension fits the 100px box
+                         double scale = Math.max(wrapperSize / imgW, wrapperSize / imgH);
+                         double scaledW = imgW * scale;
+                         double scaledH = imgH * scale;
+                         
+                         // We can't resize image easily without expensive ops, 
+                         // so we use Viewport on the original image.
+                         // Goal: define a square viewport on the original image that covers the center.
+                         double cropDim = Math.min(imgW, imgH);
+                         double x = (imgW - cropDim) / 2;
+                         double y = (imgH - cropDim) / 2;
+                         
+                         imgView.setViewport(new javafx.geometry.Rectangle2D(x, y, cropDim, cropDim));
+                         imgView.setFitWidth(100);
+                         imgView.setFitHeight(100);
+                         imgView.setPreserveRatio(false); // Since viewport is square, this is safe
+                    }
+                    
+                    hasImage = true;
+                }
+            } catch(Exception e) {
+                // Ignore
+            }
+        }
+        
+        if (!hasImage) {
+            // Text visual
+            Label textPreview = new Label(note.getContent());
+            textPreview.setWrapText(true);
+            textPreview.setStyle("-fx-text-fill: #aaa; -fx-font-size: 9px; -fx-padding: 5;");
+            textPreview.setPrefSize(100, 100);
+            textPreview.setAlignment(Pos.TOP_LEFT);
+            imgContainer.getChildren().add(textPreview);
+        } else {
+            imgContainer.getChildren().add(imgView);
+        }
+        
+        card.getChildren().add(imgContainer);
+
+        // Footer with Likes and Date
+        HBox footer = new HBox(5);
+        footer.setAlignment(Pos.CENTER_LEFT);
+        footer.setPadding(new javafx.geometry.Insets(2, 5, 2, 5));
+        
+        Label likesLabel = new Label("♥ " + note.getLikesCount());
+        likesLabel.setStyle("-fx-text-fill: #e94560; -fx-font-size: 10px; -fx-font-weight: bold;");
+        
+        footer.getChildren().addAll(likesLabel);
+        card.getChildren().add(footer);
+        
+        // Click Action -> Open NoteDetail
+        card.setOnMouseClicked(e -> openNoteDetails(note));
+        
+        return card;
+    }
+
+    private void openNoteDetails(com.visiboard.pc.model.Note note) {
+        try {
+            javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(getClass().getResource("/com/visiboard/pc/view/note_detail_view.fxml"));
+            javafx.scene.Parent root = loader.load();
+            
+            com.visiboard.pc.controller.NoteDetailController controller = loader.getController();
+            // Pass the note ID and API service. 
+            // Note: DB service is static, but controller usually takes ApiService. 
+            // We can re-use existing logic using just ID.
+            controller.setNote(note.getId(), this.apiService);
+            
+            javafx.scene.Scene scene = new javafx.scene.Scene(root);
+            javafx.stage.Stage stage = new javafx.stage.Stage();
+            stage.setTitle("Note Details");
+            stage.setScene(scene);
+            
+            // Re-use map logic style
+             stage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
+             
+             controller.setOnNoteDeleted(() -> {
+                 // Refresh list if deleted
+                 // card.getChildren().clear(); // REMOVED: card is not accessible here.
+                 // For now just close the detail window. Ideally we'd refresh the parent list.
+                 stage.close();
+                 // TODO: Trigger a refresh of the user dialog notes list if possible
+             });
+             
+            stage.show();
+        } catch (java.io.IOException ex) {
+            ex.printStackTrace();
+        }
+    }
+
     private VBox createStatItem(String label, String value) {
         VBox box = new VBox(5);
         box.setAlignment(Pos.CENTER);
@@ -294,5 +563,43 @@ public class UserInfoDialog extends Dialog<Void> {
         
         box.getChildren().addAll(valLabel, textLabel);
         return box;
+    }
+
+    private void updateStatusBadge(com.visiboard.pc.model.User user, Circle badge, Label label) {
+         if (user.isBanned()) {
+             badge.setFill(javafx.scene.paint.Color.RED);
+             String expiry = user.getBanExpiry() > 0 ? new java.util.Date(user.getBanExpiry()).toString() : "Permanent";
+             label.setText("Banned until " + expiry);
+         } else if (user.isRestricted()) {
+             badge.setFill(javafx.scene.paint.Color.ORANGE);
+             String expiry = user.getRestrictionExpiry() > 0 ? new java.util.Date(user.getRestrictionExpiry()).toString() : "Permanent";
+             label.setText("Restricted until " + expiry);
+         } else {
+             badge.setFill(javafx.scene.paint.Color.GREEN);
+             label.setText("Active");
+         }
+    }
+
+    private long showDurationDialog(String action) {
+        java.util.List<String> options = java.util.Arrays.asList("24 Hours", "3 Days", "1 Week", "1 Month", "Permanent");
+        javafx.scene.control.ChoiceDialog<String> dialog = new javafx.scene.control.ChoiceDialog<>("24 Hours", options);
+        dialog.setTitle(action + " Duration");
+        dialog.setHeaderText("Select " + action + " Duration");
+        dialog.setContentText("Duration:");
+        
+        java.util.Optional<String> result = dialog.showAndWait();
+        if (result.isPresent()) {
+            String duration = result.get();
+            long now = System.currentTimeMillis();
+            switch (duration) {
+                case "24 Hours": return now + (24 * 3600 * 1000L);
+                case "3 Days": return now + (3 * 24 * 3600 * 1000L);
+                case "1 Week": return now + (7 * 24 * 3600 * 1000L);
+                case "1 Month": return now + (30 * 24 * 3600 * 1000L);
+                case "Permanent": return 0;
+                default: return 0;
+            }
+        }
+        return -1; // Cancelled
     }
 }

@@ -211,7 +211,7 @@ public class MapController {
     @FXML
     private void goToMyLocation() {
         WebEngine webEngine = mapWebView.getEngine();
-        webEngine.executeScript("map.flyTo([40.7128, -74.0060], 16)");
+        webEngine.executeScript("map.flyTo([23.8103, 90.4125], 13)");
     }
 
     @FXML
@@ -234,10 +234,17 @@ public class MapController {
     
     private void loadNotesOnMap(WebEngine webEngine, boolean fitBounds, Runnable onComplete) {
         System.out.println("[Map] Loading notes...");
-        apiService.getNotes().thenAccept(notes -> {
+        // Use DatabaseService instead of ApiService for Admin Panel (Direct DB)
+        java.util.concurrent.CompletableFuture.supplyAsync(() -> com.visiboard.pc.services.DatabaseService.getAllNotes())
+        .thenAccept(notes -> {
             try {
-                System.out.println("[Map] Received " + (notes != null ? notes.size() : 0) + " notes from API");
+                System.out.println("[Map] Received " + (notes != null ? notes.size() : 0) + " notes from DB");
+                if (notes != null && !notes.isEmpty()) {
+                    com.visiboard.pc.model.Note first = notes.get(0);
+                    System.out.println("[Map] First Note: ID=" + first.getNoteId() + ", Lat=" + first.getLatitude() + ", Lng=" + first.getLongitude());
+                }
                 String notesJson = objectMapper.writeValueAsString(notes);
+                System.out.println("[Map] JSON Length: " + (notesJson != null ? notesJson.length() : 0));
                 // System.out.println("[Map] Notes JSON: " + notesJson); // Reduced logging
                 Platform.runLater(() -> {
                     try {

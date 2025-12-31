@@ -159,7 +159,7 @@ public class FeedController {
             double estimatedH = 80;
             if (note.getContent() != null) estimatedH += note.getContent().length() * 0.5;
             // Image?
-            boolean hasImg = (note.getImageBase64() != null && !note.getImageBase64().trim().isEmpty());
+            boolean hasImg = (note.getImageUrl() != null && !note.getImageUrl().trim().isEmpty());
             if (hasImg) estimatedH += 200; // avg image height
             
             colHeights[bestCol] += estimatedH;
@@ -188,7 +188,7 @@ public class FeedController {
         card.setMinWidth(width);
 
         // Image (if exists)
-        String base64Data = note.getImageBase64();
+        String base64Data = note.getImageUrl();
         if (base64Data != null && !base64Data.trim().isEmpty()) {
             try {
                 // Robust Check: Clean string

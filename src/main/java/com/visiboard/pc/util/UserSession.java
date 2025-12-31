@@ -1,7 +1,6 @@
 package com.visiboard.pc.util;
 
 import com.visiboard.pc.model.User;
-import java.util.UUID;
 import java.util.prefs.Preferences;
 
 /**
@@ -56,7 +55,10 @@ public class UserSession {
     /**
      * Get the current user's ID
      */
-    public UUID getUserId() {
+    /**
+     * Get the current user's ID
+     */
+    public String getUserId() {
         return currentUser != null ? currentUser.getId() : null;
     }
     
@@ -93,7 +95,7 @@ public class UserSession {
      */
     private void saveSession() {
         if (currentUser != null) {
-            prefs.put(PREF_USER_ID, currentUser.getId().toString());
+            prefs.put(PREF_USER_ID, currentUser.getId());
             prefs.put(PREF_USER_EMAIL, currentUser.getEmail() != null ? currentUser.getEmail() : "");
             prefs.put(PREF_USER_NAME, currentUser.getName() != null ? currentUser.getName() : "");
             prefs.put(PREF_FIREBASE_UID, currentUser.getFirebaseUid() != null ? currentUser.getFirebaseUid() : "");
@@ -109,7 +111,7 @@ public class UserSession {
         if (userId != null && !userId.isEmpty()) {
             try {
                 User user = new User();
-                user.setId(UUID.fromString(userId));
+                user.setId(userId);
                 user.setEmail(prefs.get(PREF_USER_EMAIL, ""));
                 user.setName(prefs.get(PREF_USER_NAME, ""));
                 user.setFirebaseUid(prefs.get(PREF_FIREBASE_UID, ""));

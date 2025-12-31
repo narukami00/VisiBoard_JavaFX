@@ -60,49 +60,16 @@
                     <ImageView fx:id="noteImageView" preserveRatio="true" styleClass="note-image"/>
                 </StackPane>
 
-                <!-- Card Footer (Stats & Actions) -->
-                <VBox spacing="8">
-                    <HBox spacing="20" styleClass="stats-row">
-                        <Label fx:id="likesCountLabel" text="0 likes" styleClass="stat-label"/>
-                        <Label fx:id="commentsCountLabel" text="0 comments" styleClass="stat-label"/>
-                    </HBox>
-                    <Region styleClass="divider" prefHeight="1" />
-                    <HBox spacing="0" alignment="CENTER" styleClass="action-row">
-                        <Button fx:id="likeButton" text="♡ Like" onAction="#handleLike" styleClass="action-button" maxWidth="Infinity" HBox.hgrow="ALWAYS"/>
-                        <Button text="💬 Comment" styleClass="action-button" maxWidth="Infinity" HBox.hgrow="ALWAYS"/>
-                        <Button text="↗ Share" styleClass="action-button" maxWidth="Infinity" HBox.hgrow="ALWAYS"/>
-                    </HBox>
+                <!-- Admin Action Footer -->
+                <VBox spacing="8" alignment="CENTER_RIGHT" style="-fx-padding: 20 0 0 0;">
+                     <Region styleClass="divider" prefHeight="1" />
+                     <Button fx:id="deleteButton" 
+                            text="🗑 Delete Note" 
+                            onAction="#handleDelete" 
+                            style="-fx-background-color: #ff4444; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;"
+                            maxWidth="Infinity"/>
                 </VBox>
             </VBox>
-
-            <!-- Comments Header -->
-            <VBox styleClass="comments-section-header">
-                <Label text="Comments" styleClass="section-title"/>
-            </VBox>
-
-            <!-- Comments List -->
-            <VBox fx:id="commentsContainer" 
-                  spacing="0" 
-                  styleClass="comments-list"/>
-                  
         </VBox>
     </ScrollPane>
-
-    <!-- Footer Input Area -->
-    <VBox styleClass="input-area" spacing="10">
-        <Region styleClass="divider" prefHeight="1" />
-        <HBox spacing="12" alignment="CENTER">
-            <ImageView fx:id="currentUserAvatar" fitWidth="32" fitHeight="32" visible="false" managed="false"/> 
-            <TextArea fx:id="commentInput" 
-                      promptText="Write a comment..." 
-                      prefHeight="40" 
-                      wrapText="true" 
-                      styleClass="comment-input"
-                      HBox.hgrow="ALWAYS"/>
-            <Button text="Send" 
-                    onAction="#handlePostComment" 
-                    styleClass="send-button"/>
-        </HBox>
-    </VBox>
-
 </VBox>

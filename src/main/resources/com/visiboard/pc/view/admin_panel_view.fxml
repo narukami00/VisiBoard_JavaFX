@@ -43,48 +43,7 @@
    <center>
       <TabPane fx:id="adminTabPane" side="TOP" style="-fx-background-color: #0a0a0a;" tabClosingPolicy="UNAVAILABLE" BorderPane.alignment="CENTER">
          <tabs>
-            <!-- Reports Tab -->
-            <Tab text="📊 Reports">
-               <content>
-                  <VBox alignment="TOP_CENTER" spacing="20.0" style="-fx-background-color: #0a0a0a; -fx-padding: 30;">
-                     <children>
-                        <Label text="Reports Dashboard" textFill="WHITE">
-                           <font>
-                              <Font name="System Bold" size="28.0" />
-                           </font>
-                        </Label>
-                        <Label text="View user reports, content moderation, and system logs" textFill="#808080">
-                           <font>
-                              <Font size="14.0" />
-                           </font>
-                        </Label>
-                        
-                        <!-- Placeholder content -->
-                        <VBox alignment="CENTER" spacing="15.0" style="-fx-background-color: rgba(255, 255, 255, 0.05); -fx-background-radius: 10; -fx-padding: 40;" VBox.vgrow="ALWAYS">
-                           <children>
-                              <Label text="📋" textFill="#808080">
-                                 <font>
-                                    <Font size="48.0" />
-                                 </font>
-                              </Label>
-                              <Label text="Reports Module" textFill="WHITE">
-                                 <font>
-                                    <Font name="System Bold" size="20.0" />
-                                 </font>
-                              </Label>
-                              <Label text="Content moderation and user reports will be displayed here" textFill="#808080">
-                                 <font>
-                                    <Font size="14.0" />
-                                 </font>
-                              </Label>
-                           </children>
-                        </VBox>
-                     </children>
-                  </VBox>
-               </content>
-            </Tab>
-            
-            <!-- Analytics Tab -->
+            <!-- 1. Analytics Tab -->
             <Tab text="📈 Analytics">
                <content>
                   <VBox alignment="TOP_CENTER" spacing="20.0" style="-fx-background-color: #0a0a0a; -fx-padding: 30;">
@@ -100,32 +59,114 @@
                            </font>
                         </Label>
                         
-                        <!-- Placeholder content -->
-                        <VBox alignment="CENTER" spacing="15.0" style="-fx-background-color: rgba(255, 255, 255, 0.05); -fx-background-radius: 10; -fx-padding: 40;" VBox.vgrow="ALWAYS">
+                        <!-- Dashboard Content -->
+                        <VBox alignment="CENTER" spacing="15.0" style="-fx-background-color: rgba(255, 255, 255, 0.05); -fx-background-radius: 10; -fx-padding: 20;" VBox.vgrow="ALWAYS">
                            <children>
-                              <Label text="📊" textFill="#808080">
-                                 <font>
-                                    <Font size="48.0" />
-                                 </font>
-                              </Label>
-                              <Label text="Analytics Module" textFill="WHITE">
-                                 <font>
-                                    <Font name="System Bold" size="20.0" />
-                                 </font>
-                              </Label>
-                              <Label text="User statistics and engagement metrics will be displayed here" textFill="#808080">
-                                 <font>
-                                    <Font size="14.0" />
-                                 </font>
-                              </Label>
+                              <!-- Stats Cards -->
+                              <HBox spacing="20" alignment="CENTER">
+                                  <!-- Users Card -->
+                                  <VBox style="-fx-background-color: #2c2c44; -fx-padding: 20; -fx-background-radius: 10;" minWidth="200" alignment="CENTER">
+                                      <Label text="👥 Users" textFill="#808080" />
+                                      <Label fx:id="usersCountLabel" text="Loading..." textFill="WHITE">
+                                          <font><Font name="System Bold" size="36.0" /></font>
+                                      </Label>
+                                  </VBox>
+                                  
+                                  <!-- Notes Card -->
+                                  <VBox style="-fx-background-color: #2c2c44; -fx-padding: 20; -fx-background-radius: 10;" minWidth="200" alignment="CENTER">
+                                      <Label text="📝 Notes" textFill="#808080" />
+                                      <Label fx:id="notesCountLabel" text="Loading..." textFill="WHITE">
+                                          <font><Font name="System Bold" size="36.0" /></font>
+                                      </Label>
+                                  </VBox>
+                                  
+                                  <!-- Reports Card -->
+                                  <VBox style="-fx-background-color: #2c2c44; -fx-padding: 20; -fx-background-radius: 10;" minWidth="200" alignment="CENTER">
+                                      <Label text="🚩 Reports" textFill="#808080" />
+                                      <Label fx:id="reportsCountLabel" text="Loading..." textFill="WHITE">
+                                          <font><Font name="System Bold" size="36.0" /></font>
+                                      </Label>
+                                  </VBox>
+                              </HBox>
+                              
+                              <!-- Charts Area -->
+                              <HBox spacing="20" VBox.vgrow="ALWAYS" alignment="CENTER">
+                                  <children>
+                                      <!-- Notes Bar Chart -->
+                                      <VBox style="-fx-background-color: #2c2c44; -fx-background-radius: 10; -fx-padding: 10;" HBox.hgrow="ALWAYS">
+                                          <Label text="Notes Created (Last 7 Days)" textFill="WHITE" style="-fx-font-weight: bold;"/>
+                                          <javafx.scene.chart.BarChart fx:id="notesBarChart" animated="false" legendVisible="false">
+                                             <xAxis>
+                                                <javafx.scene.chart.CategoryAxis side="BOTTOM" tickLabelFill="WHITE" />
+                                             </xAxis>
+                                             <yAxis>
+                                                <javafx.scene.chart.NumberAxis side="LEFT" tickLabelFill="WHITE" />
+                                             </yAxis>
+                                          </javafx.scene.chart.BarChart>
+                                      </VBox>
+                                      
+                                      <!-- Users Line Chart -->
+                                      <VBox style="-fx-background-color: #2c2c44; -fx-background-radius: 10; -fx-padding: 10;" HBox.hgrow="ALWAYS">
+                                          <Label text="New Users (Last 7 Days)" textFill="WHITE" style="-fx-font-weight: bold;"/>
+                                          <javafx.scene.chart.LineChart fx:id="usersLineChart" animated="false" legendVisible="false">
+                                             <xAxis>
+                                                <javafx.scene.chart.CategoryAxis side="BOTTOM" tickLabelFill="WHITE" />
+                                             </xAxis>
+                                             <yAxis>
+                                                <javafx.scene.chart.NumberAxis side="LEFT" tickLabelFill="WHITE" />
+                                             </yAxis>
+                                          </javafx.scene.chart.LineChart>
+                                      </VBox>
+                                  </children>
+                              </HBox>
+                              <Button onAction="#loadAnalytics" text="Refresh Analytics" style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-weight: bold;"/>
                            </children>
                         </VBox>
                      </children>
                   </VBox>
                </content>
             </Tab>
+
+            <!-- 2. Reports Tab -->
+            <Tab text="📊 Reports">
+               <content>
+                  <VBox alignment="TOP_CENTER" spacing="20.0" style="-fx-background-color: #0a0a0a; -fx-padding: 30;">
+                     <children>
+                        <Label text="Reports Dashboard" textFill="WHITE">
+                           <font>
+                              <Font name="System Bold" size="28.0" />
+                           </font>
+                        </Label>
+                        <Label text="View user reports, content moderation, and system logs" textFill="#808080">
+                           <font>
+                              <Font size="14.0" />
+                           </font>
+                        </Label>
+                        
+                         <HBox spacing="10" alignment="CENTER_LEFT" prefWidth="600" maxWidth="800">
+                             <javafx.scene.control.Button fx:id="refreshReportsButton" text="Refresh Reports" prefHeight="40" style="-fx-background-color: #4a9eff; -fx-text-fill: white;" />
+                         </HBox>
+                         
+                         <TabPane fx:id="reportsSubTabPane" tabClosingPolicy="UNAVAILABLE" VBox.vgrow="ALWAYS" maxWidth="800" style="-fx-background-color: transparent;">
+                            <tabs>
+                                <Tab text="📝 Reported Notes">
+                                    <content>
+                                         <javafx.scene.control.ListView fx:id="reportsListViewNotes" style="-fx-background-color: transparent; -fx-control-inner-background: transparent;" />
+                                    </content>
+                                </Tab>
+                                <Tab text="👤 Reported Users">
+                                    <content>
+                                         <javafx.scene.control.ListView fx:id="reportsListViewUsers" style="-fx-background-color: transparent; -fx-control-inner-background: transparent;" />
+                                    </content>
+                                </Tab>
+                            </tabs>
+                         </TabPane>
+                     </children>
+                  </VBox>
+               </content>
+            </Tab>
             
-            <!-- Users Tab -->
+            <!-- 3. Users Tab -->
             <Tab text="👥 Users">
                <content>
                   <VBox alignment="TOP_CENTER" spacing="20.0" style="-fx-background-color: #0a0a0a; -fx-padding: 30;">
@@ -141,67 +182,24 @@
                            </font>
                         </Label>
                         
-                        <!-- Placeholder content -->
-                        <VBox alignment="CENTER" spacing="15.0" style="-fx-background-color: rgba(255, 255, 255, 0.05); -fx-background-radius: 10; -fx-padding: 40;" VBox.vgrow="ALWAYS">
-                           <children>
-                              <Label text="👤" textFill="#808080">
-                                 <font>
-                                    <Font size="48.0" />
-                                 </font>
-                              </Label>
-                              <Label text="User Management Module" textFill="WHITE">
-                                 <font>
-                                    <Font name="System Bold" size="20.0" />
-                                 </font>
-                              </Label>
-                              <Label text="User accounts and moderation tools will be displayed here" textFill="#808080">
-                                 <font>
-                                    <Font size="14.0" />
-                                 </font>
-                              </Label>
-                           </children>
-                        </VBox>
+                         <HBox spacing="10" alignment="CENTER_LEFT" prefWidth="600" maxWidth="800">
+                             <javafx.scene.control.TextField fx:id="userSearchField" promptText="Search users..." prefHeight="40" HBox.hgrow="ALWAYS" style="-fx-background-color: rgba(255, 255, 255, 0.1); -fx-text-fill: white; -fx-prompt-text-fill: #808080;" />
+                             <javafx.scene.control.ComboBox fx:id="userFilterComboBox" prefHeight="40" prefWidth="150" promptText="Filter Status" style="-fx-background-color: #2c2c44; -fx-text-fill: white;" />
+                             <Button fx:id="refreshUsersButton" text="Refresh" prefHeight="40" style="-fx-background-color: #4a9eff; -fx-text-fill: white;" />
+                         </HBox>
+                         
+                         <javafx.scene.control.ListView fx:id="userListView" VBox.vgrow="ALWAYS" maxWidth="800" style="-fx-background-color: transparent; -fx-control-inner-background: transparent;" />
                      </children>
                   </VBox>
                </content>
             </Tab>
-            
-            <!-- Map Tab -->
-            <Tab text="🗺️ Map">
+
+            <!-- 4. Map Tab -->
+            <Tab fx:id="mapTab" text="🗺 Map View">
                <content>
-                  <VBox alignment="TOP_CENTER" spacing="20.0" style="-fx-background-color: #0a0a0a; -fx-padding: 30;">
+                  <VBox alignment="CENTER" spacing="20.0" style="-fx-background-color: #0a0a0a;">
                      <children>
-                        <Label text="Global Map View" textFill="WHITE">
-                           <font>
-                              <Font name="System Bold" size="28.0" />
-                           </font>
-                        </Label>
-                        <Label text="View all notes and user activities on the map" textFill="#808080">
-                           <font>
-                              <Font size="14.0" />
-                           </font>
-                        </Label>
-                        
-                        <!-- Placeholder content -->
-                        <VBox alignment="CENTER" spacing="15.0" style="-fx-background-color: rgba(255, 255, 255, 0.05); -fx-background-radius: 10; -fx-padding: 40;" VBox.vgrow="ALWAYS">
-                           <children>
-                              <Label text="🌍" textFill="#808080">
-                                 <font>
-                                    <Font size="48.0" />
-                                 </font>
-                              </Label>
-                              <Label text="Map Module" textFill="WHITE">
-                                 <font>
-                                    <Font name="System Bold" size="20.0" />
-                                 </font>
-                              </Label>
-                              <Label text="Global map with all notes and user locations will be displayed here" textFill="#808080">
-                                 <font>
-                                    <Font size="14.0" />
-                                 </font>
-                              </Label>
-                           </children>
-                        </VBox>
+                        <Label text="Loading Map..." textFill="WHITE" style="-fx-font-size: 24px;"/>
                      </children>
                   </VBox>
                </content>

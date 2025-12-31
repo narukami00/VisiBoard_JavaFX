@@ -10,7 +10,6 @@
       <WebView fx:id="mapWebView" prefHeight="800.0" prefWidth="950.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
    </children>
     <ToggleButton fx:id="themeToggle" text="Dark Mode" AnchorPane.topAnchor="20.0" AnchorPane.rightAnchor="20.0" onAction="#toggleTheme" style="-fx-background-color: white; -fx-text-fill: black; -fx-background-radius: 20; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 10, 0, 0, 0);"/>
-    <ToggleButton fx:id="addNoteToggle" text="Add Note" AnchorPane.topAnchor="20.0" AnchorPane.leftAnchor="20.0" onAction="#toggleAddNoteMode" style="-fx-background-color: white; -fx-text-fill: black; -fx-background-radius: 20; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 10, 0, 0, 0);"/>
     
     <Button text="Refresh" AnchorPane.topAnchor="60.0" AnchorPane.rightAnchor="20.0" onAction="#refreshMap" style="-fx-background-color: white; -fx-text-fill: black; -fx-background-radius: 20; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 10, 0, 0, 0);"/>
     <Button text="My Location" AnchorPane.topAnchor="100.0" AnchorPane.rightAnchor="20.0" onAction="#goToMyLocation" style="-fx-background-color: white; -fx-text-fill: black; -fx-background-radius: 20; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 10, 0, 0, 0);"/>

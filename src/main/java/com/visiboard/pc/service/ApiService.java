@@ -223,9 +223,10 @@ public class ApiService {
         String url = BASE_URL + "/notes/" + noteId + "/like";
         
         // Append current user ID if logged in
-        java.util.UUID userId = com.visiboard.pc.util.UserSession.getInstance().getUserId();
+        // Append current user ID if logged in
+        String userId = com.visiboard.pc.util.UserSession.getInstance().getUserId();
         if (userId != null) {
-            url += "?userId=" + userId.toString();
+            url += "?userId=" + userId;
         }
         
         HttpRequest request = HttpRequest.newBuilder()

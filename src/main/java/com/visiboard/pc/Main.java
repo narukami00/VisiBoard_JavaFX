@@ -11,6 +11,17 @@ import java.io.IOException;
 public class Main extends Application {
     @Override
     public void start(Stage stage) throws IOException {
+        // Initialize Database and Sync Services
+        try {
+            com.visiboard.pc.services.DatabaseService.initializeDatabase();
+            new Thread(() -> {
+                com.visiboard.pc.services.SyncService.performInitialSync();
+            }).start();
+        } catch (Exception e) {
+            System.err.println("Failed to initialize services: " + e.getMessage());
+            e.printStackTrace();
+        }
+
         // Check if user is already logged in
         boolean isLoggedIn = UserSession.getInstance().isLoggedIn();
         
