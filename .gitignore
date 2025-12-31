@@ -1,4 +1,11 @@
 .idea/
+*.iml
+.DS_Store
+out/
+.mvn/
+*.class
+*.log
+*.ctxt
 .gradle/
 local.properties
 captures/
@@ -8,3 +15,5 @@ google-services.json
 *.keystore
 *.md
 visiboard_pc/
+serviceAccountKey.json
+build_out.txt
