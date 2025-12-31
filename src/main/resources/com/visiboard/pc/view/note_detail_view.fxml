@@ -17,59 +17,54 @@
       styleClass="note-detail-container"
       stylesheets="@note_detail.css"
       spacing="0"
-      prefWidth="600" 
-      prefHeight="800">
+      prefWidth="900" 
+      prefHeight="550">
 
-    <!-- Scrollable Content Area -->
-    <ScrollPane fitToWidth="true" 
-                VBox.vgrow="ALWAYS" 
-                styleClass="main-scroll-pane"
-                hbarPolicy="NEVER">
-        <VBox spacing="0" styleClass="content-wrapper">
+    <HBox spacing="0" styleClass="content-wrapper">
+        
+        <!-- LEFT REGION: Image/Media (45%) -->
+        <StackPane fx:id="imageContainer" managed="false" visible="false" styleClass="image-container" HBox.hgrow="ALWAYS" maxWidth="450" prefWidth="400">
+            <ImageView fx:id="noteImageView" preserveRatio="true" styleClass="note-image" fitWidth="400" fitHeight="600"/>
+        </StackPane>
+
+        <!-- RIGHT REGION: Content & Info (55%) -->
+        <VBox spacing="20" styleClass="note-card" HBox.hgrow="ALWAYS" prefWidth="400">
+             <padding>
+                <javafx.geometry.Insets top="20" right="20" bottom="20" left="20"/>
+            </padding>
             
-            <!-- Note Card -->
-            <VBox styleClass="note-card" spacing="12">
-                <!-- Card Header -->
-                <HBox spacing="12" alignment="CENTER_LEFT" styleClass="card-header">
-                    <ImageView fx:id="userAvatar" fitWidth="48" fitHeight="48" preserveRatio="true">
-                        <clip>
-                            <Circle radius="24" centerX="24" centerY="24"/>
-                        </clip>
-                    </ImageView>
-                    
-                    <VBox spacing="2" HBox.hgrow="ALWAYS">
-                        <Label fx:id="userNameLabel" text="User Name" styleClass="user-name"/>
-                        <Label fx:id="timestampLabel" text="2 hours ago" styleClass="timestamp"/>
-                    </VBox>
-                    
-                    <Button fx:id="deleteButton" 
-                            text="🗑" 
-                            onAction="#handleDelete" 
-                            visible="false" 
-                            styleClass="icon-button-delete"/>
-                </HBox>
+            <!-- User Info Header -->
+            <HBox spacing="15" alignment="CENTER_LEFT" styleClass="card-header">
+                <ImageView fx:id="userAvatar" fitWidth="60" fitHeight="60" preserveRatio="true">
+                    <clip>
+                        <Circle radius="30" centerX="30" centerY="30"/>
+                    </clip>
+                </ImageView>
+                
+                <VBox spacing="4" HBox.hgrow="ALWAYS">
+                    <Label fx:id="userNameLabel" text="User Name" styleClass="user-name" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
+                    <Label fx:id="timestampLabel" text="2 hours ago" styleClass="timestamp" style="-fx-text-fill: #aaa;"/>
+                </VBox>
+            </HBox>
 
-                <!-- Card Body -->
+            <!-- Card Body / Content -->
+            <ScrollPane fitToWidth="true" style="-fx-background-color: transparent; -fx-background: transparent;" VBox.vgrow="ALWAYS" hbarPolicy="NEVER">
                 <Label fx:id="contentLabel" 
                        text="Note content goes here..." 
                        wrapText="true" 
-                       styleClass="content-text"/>
-                       
-                <!-- Note Image (New) -->
-                <StackPane fx:id="imageContainer" managed="false" visible="false" styleClass="image-container">
-                    <ImageView fx:id="noteImageView" preserveRatio="true" styleClass="note-image"/>
-                </StackPane>
+                       styleClass="content-text" 
+                       style="-fx-font-size: 16px; -fx-text-fill: #333;"/>
+            </ScrollPane>
 
-                <!-- Admin Action Footer -->
-                <VBox spacing="8" alignment="CENTER_RIGHT" style="-fx-padding: 20 0 0 0;">
-                     <Region styleClass="divider" prefHeight="1" />
-                     <Button fx:id="deleteButton" 
-                            text="🗑 Delete Note" 
-                            onAction="#handleDelete" 
-                            style="-fx-background-color: #ff4444; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;"
-                            maxWidth="Infinity"/>
-                </VBox>
+            <!-- Admin Action Footer -->
+            <VBox spacing="10" alignment="BOTTOM_RIGHT">
+                 <Region styleClass="divider" prefHeight="1" style="-fx-background-color: #eee;"/>
+                 <Button fx:id="deleteButton" 
+                        text="🗑 Delete Note" 
+                        onAction="#handleDelete" 
+                        styleClass="action-button-danger"
+                        style="-fx-background-color: #ff4444; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand; -fx-padding: 10 20; -fx-background-radius: 20;"/>
             </VBox>
         </VBox>
-    </ScrollPane>
+    </HBox>
 </VBox>

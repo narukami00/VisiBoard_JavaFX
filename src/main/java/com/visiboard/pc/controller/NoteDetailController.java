@@ -71,6 +71,12 @@ public class NoteDetailController {
         this.onNoteDeleted = callback;
     }
 
+    private boolean fromReports = false;
+
+    public void setReportContext(boolean fromReports) {
+        this.fromReports = fromReports;
+    }
+
     private void updateUI() {
         if (note == null) return;
 
@@ -116,8 +122,15 @@ public class NoteDetailController {
             });
         }
             
-        // Delete Button - Always Visible for Admin
-        deleteButton.setVisible(true);
+        // Delete Button - Visible Only if NOT from Reports (Context Aware)
+        // If fromReports is true -> Hide Delete Button (force user to use Report Card actions)
+        if (fromReports) {
+            deleteButton.setVisible(false);
+            deleteButton.setManaged(false);
+        } else {
+            deleteButton.setVisible(true);
+            deleteButton.setManaged(true);
+        }
 
         contentLabel.setText(note.getContent());
         // Simple timestamp format

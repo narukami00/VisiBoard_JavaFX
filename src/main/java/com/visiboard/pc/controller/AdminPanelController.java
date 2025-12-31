@@ -3,7 +3,7 @@ package com.visiboard.pc.controller;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
-import javafx.scene.control.TabPane;
+
 import javafx.stage.Stage;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
@@ -14,22 +14,34 @@ import java.io.IOException;
 public class AdminPanelController {
 
     @FXML
-    private TabPane adminTabPane;
-    @FXML
-    private Label adminNameLabel;
-    @FXML
-    private Button logoutButton;
+    private javafx.scene.layout.StackPane contentArea;
+    
+    // Header Controls
+    @FXML private Label adminNameLabel;
+    @FXML private Button logoutButton;
+    
+    // Dashboard Stats
+    @FXML private Label usersCountLabel;
+    @FXML private Label notesCountLabel;
+    @FXML private Label reportsCountLabel;
+    
+    // Navigation Buttons
+    @FXML private Button navAnalytics;
+    @FXML private Button navReports;
+    @FXML private Button navUsers;
+    @FXML private Button navMap;
+    // Navigation Button List for easier toggling
+    private java.util.List<Button> navButtons;
 
-    @FXML
-    private Label usersCountLabel;
-    @FXML
-    private Label notesCountLabel;
-    @FXML
-    private Label reportsCountLabel;
+    // Content Panes (will be injected or created)
+    @FXML private javafx.scene.layout.VBox viewAnalytics;
+    @FXML private javafx.scene.layout.VBox viewReports;
+    @FXML private javafx.scene.layout.VBox viewUsers;
+    @FXML private javafx.scene.layout.VBox viewMap; // Placeholder for Map container
 
     @FXML
     private void initialize() {
-        // Set admin name (placeholder)
+        // Set admin name 
         if (adminNameLabel != null) {
             adminNameLabel.setText("Administrator");
         }
@@ -39,41 +51,98 @@ public class AdminPanelController {
             logoutButton.setOnAction(event -> handleLogout());
         }
         
-        // Setup tab selection listener
-        if (adminTabPane != null) {
-            adminTabPane.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
-                if (newValue != null) {
-                    if (newValue.getText().contains("Analytics")) {
-                        loadAnalytics();
-                    } else if (newValue.getText().contains("Reports")) {
-                        loadReports();
-                    } else if (newValue.getText().contains("Users")) {
-                        loadUsers();
-                    } else if (newValue.getText().contains("Map")) {
-                        loadMap();
-                    }
+        // Initialize Nav Buttons List
+        navButtons = java.util.Arrays.asList(navAnalytics, navReports, navUsers, navMap);
+        
+        // Setup Navigation Actions
+        setupNavigation();
+        
+        // Initialize Sub-Components
+        setupAnalytics();
+        setupReports();
+        setupUsers();
+        // Map is loaded lazily or on init if preferred, keeping lazy for performance
+        
+        // Default View
+        showView(viewAnalytics, navAnalytics);
+        loadAnalytics(); // Initial load
+        
+        System.out.println("Admin Panel initialized");
+    }
+    
+    private void setupNavigation() {
+        if (navAnalytics != null) navAnalytics.setOnAction(e -> {
+            showView(viewAnalytics, navAnalytics);
+            loadAnalytics();
+        });
+        if (navReports != null) navReports.setOnAction(e -> {
+            showView(viewReports, navReports);
+            loadReports();
+        });
+        if (navUsers != null) navUsers.setOnAction(e -> {
+            showView(viewUsers, navUsers);
+            loadUsers();
+        });
+        if (navMap != null) navMap.setOnAction(e -> {
+            showView(viewMap, navMap);
+            loadMap();
+        });
+    }
+
+    private void showView(javafx.scene.Node view, Button activeBtn) {
+        // Toggle Buttons
+        for (Button b : navButtons) {
+            if (b != null) {
+                b.getStyleClass().remove("active");
+                if (b == activeBtn) {
+                     b.getStyleClass().add("active");
                 }
-            });
+            }
         }
         
-        // Load initial data for the default tab (usually first one, Reports)
-        loadReports();
+        // Toggle Views
+        if (viewAnalytics != null) viewAnalytics.setVisible(false);
+        if (viewReports != null) viewReports.setVisible(false);
+        if (viewUsers != null) viewUsers.setVisible(false);
+        if (viewMap != null) viewMap.setVisible(false);
         
-        // Initialize ComboBox
+        if (view != null) {
+            view.setVisible(true);
+            view.toFront();
+        }
+    }
+    
+    @FXML private Button refreshAnalyticsButton;
+
+    private void setupAnalytics() {
+        if (refreshAnalyticsButton != null) {
+            refreshAnalyticsButton.setOnAction(e -> loadAnalytics());
+        }
+    }
+    
+    private void setupReports() {
+        if (refreshReportsButton != null) refreshReportsButton.setOnAction(e -> loadReports());
+        if (userFilterComboBox != null) {
+             // ... existing combo box setup if it was in this controller? 
+             // Logic moved to specific setup methods to be cleaner
+        }
+    }
+
+    private void setupUsers() {
         if (userFilterComboBox != null) {
             userFilterComboBox.getItems().addAll("All", "Active", "Restricted", "Banned");
             userFilterComboBox.setValue("All");
             userFilterComboBox.setOnAction(e -> filterUsers(userSearchField.getText()));
         }
 
-        // Setup user search listener
         if (userSearchField != null) {
             userSearchField.textProperty().addListener((observable, oldValue, newValue) -> {
                 filterUsers(newValue);
             });
         }
-        
-        System.out.println("Admin Panel initialized");
+        if (refreshUsersButton != null) {
+            refreshUsersButton.setOnAction(e -> loadUsers());
+        }
     }
 
     private void handleLogout() {
@@ -126,11 +195,13 @@ public class AdminPanelController {
                 }
                 
                 if (reportsListViewNotes != null) {
+                    reportsListViewNotes.setPlaceholder(new Label("No reports to handle"));
                     reportsListViewNotes.setItems(noteReportsList);
                     setupReportList(reportsListViewNotes, true);
                 }
                 
                 if (reportsListViewUsers != null) {
+                    reportsListViewUsers.setPlaceholder(new Label("No reports to handle"));
                     reportsListViewUsers.setItems(userReportsList);
                     setupReportList(reportsListViewUsers, false);
                 }
@@ -146,9 +217,9 @@ public class AdminPanelController {
             if (event.getClickCount() == 2 && listView.getSelectionModel().getSelectedItem() != null) {
                 com.visiboard.pc.model.Report report = listView.getSelectionModel().getSelectedItem();
                 if (isNoteReport) {
-                    handleShowNoteDetails(report.getReportedNoteId());
+                    handleShowNoteDetails(report.getReportedNoteId(), true);
                 } else {
-                    handleShowUserDetails(report.getReportedUserId());
+                    handleShowUserDetails(report.getReportedUserId(), true);
                 }
             }
         });
@@ -168,7 +239,7 @@ public class AdminPanelController {
                     setStyle("-fx-background-color: transparent;");
                 } else {
                     javafx.scene.layout.VBox root = new javafx.scene.layout.VBox(5);
-                    root.setStyle("-fx-padding: 10; -fx-background-color: rgba(255,255,255,0.05); -fx-background-radius: 5;");
+                    root.getStyleClass().add("list-item-card");
                     
                     javafx.scene.layout.HBox header = new javafx.scene.layout.HBox(10);
                     header.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
@@ -190,22 +261,24 @@ public class AdminPanelController {
                     }
                     
                     Label titleLabel = new Label("Reporter: " + resolvedReporterName + "  ->  Reported: " + resolvedReportedName);
-                    titleLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px;");
+                    titleLabel.getStyleClass().add("list-cell-title");
                     
                     javafx.scene.layout.Region spacer = new javafx.scene.layout.Region();
                     javafx.scene.layout.HBox.setHgrow(spacer, javafx.scene.layout.Priority.ALWAYS);
                     
                     Label statusLabel = new Label(report.getStatus());
-                    String statusColor = "#f1c40f"; // yellow (pending)
-                    if ("ACTION_TAKEN".equals(report.getStatus())) statusColor = "#2ecc71"; // green
-                    else if ("DISMISSED".equals(report.getStatus())) statusColor = "#95a5a6"; // gray
                     
-                    statusLabel.setStyle("-fx-text-fill: " + statusColor + "; -fx-font-weight: bold; -fx-border-color: " + statusColor + "; -fx-border-radius: 3; -fx-padding: 2 5;");
+
+                    
+                    statusLabel.getStyleClass().add("status-badge");
+                    if ("ACTION_TAKEN".equals(report.getStatus())) statusLabel.getStyleClass().add("verified");
+                    else if ("DISMISSED".equals(report.getStatus())) statusLabel.getStyleClass().add("dismissed");
+                    else statusLabel.getStyleClass().add("pending");
                     
                     header.getChildren().addAll(titleLabel, spacer, statusLabel);
                     
                     Label reasonLabel = new Label("Reason: " + report.getReason());
-                    reasonLabel.setStyle("-fx-text-fill: #e94560; -fx-font-size: 13px; -fx-wrap-text: true;");
+                    reasonLabel.getStyleClass().add("list-cell-detail");
                     
                     Label detailsLabel = new Label();
                     if (report.getTargetDetails() != null && !report.getTargetDetails().isEmpty()) {
@@ -213,7 +286,7 @@ public class AdminPanelController {
                     } else {
                         detailsLabel.setText("No Details Available");
                     }
-                    detailsLabel.setStyle("-fx-text-fill: white; -fx-font-style: italic; -fx-font-size: 12px; -fx-padding: 0 0 5 0;");
+                    detailsLabel.getStyleClass().add("list-cell-subtitle");
 
                     // Info Row
                     Label infoLabel; 
@@ -222,7 +295,7 @@ public class AdminPanelController {
                     } else {
                          infoLabel = new Label("User ID: " + report.getReportedUserId());
                     }
-                    infoLabel.setStyle("-fx-text-fill: #808080; -fx-font-size: 11px;");
+                    infoLabel.getStyleClass().add("list-cell-subtitle");
                     
                     // Action Buttons Row
                     javafx.scene.layout.HBox actionsBox = new javafx.scene.layout.HBox(10);
@@ -284,6 +357,7 @@ public class AdminPanelController {
     private void handleWarnUser(com.visiboard.pc.model.Report report) {
         new Thread(() -> {
             com.visiboard.pc.services.DatabaseService.warnUser(report.getReportedUserId());
+            com.visiboard.pc.services.DatabaseService.deleteReport(report.getReportId());
             com.visiboard.pc.services.FirebaseService.deleteReport(report.getReportId());
             com.visiboard.pc.services.DatabaseService.notifyUser(report.getReportedUserId(), "You have received a warning for violating community guidelines.");
             com.visiboard.pc.services.DatabaseService.notifyUser(report.getReporterId(), "We have reviewed your report and warned the user.");
@@ -300,6 +374,7 @@ public class AdminPanelController {
 
         new Thread(() -> {
             com.visiboard.pc.services.DatabaseService.updateUserStatus(report.getReportedUserId(), "restricted", true, expiry);
+            com.visiboard.pc.services.DatabaseService.deleteReport(report.getReportId());
             com.visiboard.pc.services.FirebaseService.deleteReport(report.getReportId());
             String durationStr = expiry == 0 ? "permanently" : "until " + new java.util.Date(expiry).toString();
             com.visiboard.pc.services.DatabaseService.notifyUser(report.getReportedUserId(), "Your account has been restricted " + durationStr + ".");
@@ -319,6 +394,7 @@ public class AdminPanelController {
 
         new Thread(() -> {
             com.visiboard.pc.services.DatabaseService.updateUserStatus(report.getReportedUserId(), "banned", true, expiry);
+            com.visiboard.pc.services.DatabaseService.deleteReport(report.getReportId());
             com.visiboard.pc.services.FirebaseService.deleteReport(report.getReportId());
             String durationStr = expiry == 0 ? "permanently" : "until " + new java.util.Date(expiry).toString();
             com.visiboard.pc.services.DatabaseService.notifyUser(report.getReportedUserId(), "Your account has been banned " + durationStr + ".");
@@ -336,6 +412,7 @@ public class AdminPanelController {
          new Thread(() -> {
             com.visiboard.pc.services.DatabaseService.deleteNote(report.getReportedNoteId());
             com.visiboard.pc.services.FirebaseService.deleteNote(report.getReportedNoteId());
+            com.visiboard.pc.services.DatabaseService.deleteReport(report.getReportId());
             com.visiboard.pc.services.FirebaseService.deleteReport(report.getReportId());
             
             com.visiboard.pc.services.DatabaseService.notifyUser(report.getReportedUserId(), "Your note was removed for violating guidelines."); 
@@ -606,7 +683,7 @@ public class AdminPanelController {
                     setStyle("-fx-background-color: transparent;");
                 } else {
                     javafx.scene.layout.VBox root = new javafx.scene.layout.VBox(5);
-                    root.setStyle("-fx-padding: 10; -fx-background-color: rgba(255,255,255,0.05); -fx-background-radius: 5;");
+                    root.getStyleClass().add("list-item-card");
 
                     javafx.scene.layout.HBox hbox = new javafx.scene.layout.HBox(15);
                     hbox.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
@@ -665,9 +742,9 @@ public class AdminPanelController {
                     
                     javafx.scene.layout.VBox info = new javafx.scene.layout.VBox(3);
                     Label nameLabel = new Label(user.getDisplayName() != null ? user.getDisplayName() : "Unknown User");
-                    nameLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px;");
+                    nameLabel.getStyleClass().add("list-cell-title");
                     Label emailLabel = new Label(user.getEmail() != null ? user.getEmail() : "No Email");
-                    emailLabel.setStyle("-fx-text-fill: #b0b0b0; -fx-font-size: 12px;");
+                    emailLabel.getStyleClass().add("list-cell-subtitle");
                     info.getChildren().addAll(nameLabel, emailLabel);
                     
                     javafx.scene.layout.Region spacer = new javafx.scene.layout.Region();
@@ -757,30 +834,30 @@ public class AdminPanelController {
         dialog.showAndWait();
     }
     
-    @FXML
-    private javafx.scene.control.Tab mapTab;
-
     public void loadMap() {
         System.out.println("Loading map...");
-        if (mapTab != null && mapTab.getContent() instanceof javafx.scene.layout.VBox && 
-            ((javafx.scene.layout.VBox)mapTab.getContent()).getChildren().get(0) instanceof javafx.scene.control.Label) {
+        if (viewMap != null && viewMap.getChildren().size() <= 1) { // Assuming first child is "Loading..." label
             
-            // Check if current content is placeholder (VBox with Label)
             try {
                 FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/visiboard/pc/view/map_view.fxml"));
                 javafx.scene.Parent mapRoot = loader.load();
-                mapTab.setContent(mapRoot);
+                
+                // Clear placeholder and add map
+                viewMap.getChildren().clear();
+                javafx.scene.layout.VBox.setVgrow(mapRoot, javafx.scene.layout.Priority.ALWAYS);
+                viewMap.getChildren().add(mapRoot);
+                
                 System.out.println("Map View loaded successfully.");
             } catch (IOException e) {
                 System.err.println("Failed to load map view: " + e.getMessage());
                 e.printStackTrace();
             }
         } else {
-             System.out.println("Map already loaded or tab not available.");
+             System.out.println("Map already loaded or container not available.");
         }
     }
 
-    private void handleShowUserDetails(String userId) {
+    private void handleShowUserDetails(String userId, boolean fromReports) {
         if (userId == null) return;
         new Thread(() -> {
             java.util.List<com.visiboard.pc.model.User> users = com.visiboard.pc.services.DatabaseService.getAllUsers();
@@ -788,14 +865,14 @@ public class AdminPanelController {
             
             if (user != null) {
                 javafx.application.Platform.runLater(() -> {
-                     com.visiboard.pc.ui.UserInfoDialog dialog = new com.visiboard.pc.ui.UserInfoDialog(user);
+                     com.visiboard.pc.ui.UserInfoDialog dialog = new com.visiboard.pc.ui.UserInfoDialog(user, fromReports);
                      dialog.show(); 
                 });
             }
         }).start();
     }
 
-    private void handleShowNoteDetails(String noteId) {
+    private void handleShowNoteDetails(String noteId, boolean fromReports) {
         if (noteId == null) return;
         javafx.application.Platform.runLater(() -> {
             try {
@@ -803,6 +880,7 @@ public class AdminPanelController {
                 javafx.scene.Parent root = loader.load();
     
                 NoteDetailController controller = loader.getController();
+                controller.setReportContext(fromReports);
                 
                  new Thread(() -> {
                     java.util.List<com.visiboard.pc.model.Note> allNotes = com.visiboard.pc.services.DatabaseService.getAllNotes();

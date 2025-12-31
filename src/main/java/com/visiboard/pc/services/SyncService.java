@@ -17,12 +17,35 @@ import java.util.Arrays;
 
 public class SyncService {
 
+    private static volatile boolean initialSyncDone = false;
+    private static Runnable syncCompleteCallback;
+
+    public static boolean isInitialSyncDone() {
+        return initialSyncDone;
+    }
+
+    public static void setSyncCompleteCallback(Runnable callback) {
+        syncCompleteCallback = callback;
+        // If already done, trigger immediately (logic handled by caller usually, but could be nice here too)
+        // But for safety, caller checks isInitialSyncDone first.
+    }
+
     public static void performInitialSync() {
         System.out.println("Starting Initial Sync...");
         syncUsers();
         syncNotes();
+        syncNotes();
         syncReports();
         System.out.println("Initial Sync Completed.");
+        
+        initialSyncDone = true;
+        if (syncCompleteCallback != null) {
+            try {
+                syncCompleteCallback.run();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     private static void syncUsers() {
@@ -140,7 +163,7 @@ public class SyncService {
                     Double lon = getDouble(doc, "longitude", "lng", "lon");
                     pstmt.setDouble(5, lat != null ? lat : 0.0);
                     pstmt.setDouble(6, lon != null ? lon : 0.0);
-                    Long likes = doc.getLong("likesCount");
+                    Long likes = getLong(doc, "likesCount", "likeCount", "likes");
                     pstmt.setInt(7, likes != null ? likes.intValue() : 0);
                     Boolean hidden = doc.getBoolean("isHidden");
                     pstmt.setBoolean(8, hidden != null && hidden);

@@ -28,7 +28,7 @@ public class AdminLoginController {
     private Label errorLabel;
     
     @FXML
-    private javafx.scene.control.Hyperlink backToUserLoginLink;
+    private Label syncStatusLabel;
 
     // Placeholder credentials - will be replaced with proper authentication
     private static final String ADMIN_USERNAME = "admin";
@@ -38,13 +38,28 @@ public class AdminLoginController {
     private void initialize() {
         loginButton.setOnAction(event -> handleLogin());
         
-        if (backToUserLoginLink != null) {
-            backToUserLoginLink.setOnAction(event -> navigateToUserLogin());
-        }
-        
         // Allow Enter key to submit
         usernameField.setOnAction(event -> handleLogin());
         passwordField.setOnAction(event -> handleLogin());
+        
+        checkSyncStatus();
+    }
+    
+    private void checkSyncStatus() {
+        if (com.visiboard.pc.services.SyncService.isInitialSyncDone()) {
+            syncStatusLabel.setText("Data loaded. You can login now.");
+            syncStatusLabel.setStyle("-fx-text-fill: #2ecc71; -fx-font-size: 11px; -fx-font-style: italic;");
+        } else {
+             syncStatusLabel.setText("Syncing data with Firebase... please wait.");
+             syncStatusLabel.setStyle("-fx-text-fill: #e67e22; -fx-font-size: 11px; -fx-font-style: italic;");
+             
+             com.visiboard.pc.services.SyncService.setSyncCompleteCallback(() -> {
+                 Platform.runLater(() -> {
+                     syncStatusLabel.setText("Data loaded. You can login now.");
+                     syncStatusLabel.setStyle("-fx-text-fill: #2ecc71; -fx-font-size: 11px; -fx-font-style: italic;");
+                 });
+             });
+        }
     }
 
     private void handleLogin() {
@@ -78,7 +93,7 @@ public class AdminLoginController {
                 // Login failed
                 showError("Invalid admin credentials");
                 loginButton.setDisable(false);
-                loginButton.setText("Login as Admin");
+                loginButton.setText("Login");
             }
         });
     }
@@ -102,22 +117,7 @@ public class AdminLoginController {
             e.printStackTrace();
             showError("Failed to load admin panel: " + e.getMessage());
             loginButton.setDisable(false);
-            loginButton.setText("Login as Admin");
-        }
-    }
-
-    private void navigateToUserLogin() {
-        try {
-            FXMLLoader loader = new FXMLLoader(Main.class.getResource("view/login_view.fxml"));
-            Scene scene = new Scene(loader.load(), 800, 600);
-            
-            Stage stage = (Stage) backToUserLoginLink.getScene().getWindow();
-            stage.setScene(scene);
-            stage.setTitle("VisiBoard - Login");
-            stage.centerOnScreen();
-        } catch (IOException e) {
-            e.printStackTrace();
-            showError("Failed to navigate: " + e.getMessage());
+            loginButton.setText("Login");
         }
     }
 }

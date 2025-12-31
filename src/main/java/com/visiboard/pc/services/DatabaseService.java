@@ -397,14 +397,18 @@ public class DatabaseService {
     }
 
     public static void dismissReport(String reportId) {
-        String sql = "UPDATE reports SET status = 'DISMISSED' WHERE report_id = ?";
+        String sql = "DELETE FROM reports WHERE report_id = ?";
         try (Connection conn = getConnection();
              java.sql.PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, reportId);
             pstmt.executeUpdate();
-            System.out.println("Dismissed report: " + reportId);
+            System.out.println("Dismissed (deleted) report: " + reportId);
         } catch (SQLException e) {
              e.printStackTrace();
         }
+    }
+
+    public static void deleteReport(String reportId) {
+        dismissReport(reportId);
     }
 }

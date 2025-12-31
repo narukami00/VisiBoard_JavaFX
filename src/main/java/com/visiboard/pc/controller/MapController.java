@@ -215,9 +215,19 @@ public class MapController {
     }
 
     @FXML
+    private javafx.scene.control.ToggleButton satelliteToggle;
+    
+    @FXML
     private void toggleTheme() {
         WebEngine webEngine = mapWebView.getEngine();
         if (themeToggle.isSelected()) {
+            // Turn off Satellite if on
+            if (satelliteToggle.isSelected()) {
+                satelliteToggle.setSelected(false);
+                satelliteToggle.setText("Satellite");
+                satelliteToggle.setStyle("-fx-background-color: white; -fx-text-fill: black; -fx-background-radius: 20; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 10, 0, 0, 0);");
+            }
+            
             themeToggle.setText("Light Mode");
             themeToggle.setStyle("-fx-background-color: #1a1a2e; -fx-text-fill: white; -fx-background-radius: 20; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 10, 0, 0, 0);");
             webEngine.executeScript("setTheme('dark')");
@@ -225,6 +235,27 @@ public class MapController {
             themeToggle.setText("Dark Mode");
             themeToggle.setStyle("-fx-background-color: white; -fx-text-fill: black; -fx-background-radius: 20; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 10, 0, 0, 0);");
             webEngine.executeScript("setTheme('light')");
+        }
+    }
+    
+    @FXML
+    private void toggleSatellite() {
+        WebEngine webEngine = mapWebView.getEngine();
+        if (satelliteToggle.isSelected()) {
+            // Turn off Dark Mode if on
+            if (themeToggle.isSelected()) {
+                themeToggle.setSelected(false);
+                themeToggle.setText("Dark Mode");
+                themeToggle.setStyle("-fx-background-color: white; -fx-text-fill: black; -fx-background-radius: 20; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 10, 0, 0, 0);");
+            }
+            
+            satelliteToggle.setText("Map View");
+            satelliteToggle.setStyle("-fx-background-color: #e94560; -fx-text-fill: white; -fx-background-radius: 20; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 10, 0, 0, 0);");
+            webEngine.executeScript("setSatellite(true)");
+        } else {
+            satelliteToggle.setText("Satellite");
+            satelliteToggle.setStyle("-fx-background-color: white; -fx-text-fill: black; -fx-background-radius: 20; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 10, 0, 0, 0);");
+            webEngine.executeScript("setSatellite(false)");
         }
     }
 

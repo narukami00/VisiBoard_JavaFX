@@ -50,6 +50,7 @@
     var osmb;
     var darkTiles;
     var lightTiles;
+    var satelliteTiles;
 
     try {
         if (typeof L === 'undefined') {
@@ -78,6 +79,12 @@
           subdomains: 'abcd',
           maxZoom: 20
         });
+        
+        // Satellite Layer (Esri World Imagery)
+        satelliteTiles = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+            maxZoom: 19
+        });
 
         // Add default layer (Light)
         lightTiles.addTo(map);
@@ -96,27 +103,48 @@
     }
 
     function setTheme(theme) {
-        if (!map) {
-            console.error("Map not initialized");
-            return;
-        }
+        if (!map) return;
+        
+        // If satellite is active, we don't switch base tiles yet, but we update the "underlying" preference if needed
+        // For simplicity, theme toggle overrides everything to that theme.
         
         if (theme === 'dark') {
-            map.removeLayer(lightTiles);
+            if (map.hasLayer(lightTiles)) map.removeLayer(lightTiles);
+            if (map.hasLayer(satelliteTiles)) map.removeLayer(satelliteTiles);
+            
             darkTiles.addTo(map);
             document.getElementById('map').style.backgroundColor = '#1a1a2e';
-            if (osmb) {
-                osmb.style({ color: 'rgb(233, 69, 96)', roofColor: 'rgb(233, 69, 96)' });
-            }
-            document.body.style.backgroundColor = '#1a1a2e';
+            if (osmb) osmb.style({ color: 'rgb(233, 69, 96)', roofColor: 'rgb(233, 69, 96)' });
         } else {
-            map.removeLayer(darkTiles);
+            if (map.hasLayer(darkTiles)) map.removeLayer(darkTiles);
+            if (map.hasLayer(satelliteTiles)) map.removeLayer(satelliteTiles);
+            
             lightTiles.addTo(map);
             document.getElementById('map').style.backgroundColor = '#ffffff';
+            if (osmb) osmb.style({ color: '#666666', roofColor: '#aaaaaa' });
+        }
+    }
+    
+    function setSatellite(enabled) {
+        if (!map) return;
+        
+        if (enabled) {
+            if (map.hasLayer(lightTiles)) map.removeLayer(lightTiles);
+            if (map.hasLayer(darkTiles)) map.removeLayer(darkTiles);
+            
+            satelliteTiles.addTo(map);
+            // Hide buildings in satellite mode as they look weird on top of photos usually
+             if (osmb) osmb.hide();
+        } else {
+            // Revert to default (assume Light for now, or check UI state? Simplest is revert to light or dark)
+            // Ideally we track current theme. For now, revert to Light as default behavior or let user toggle.
+            // Let's revert to Light.
+            map.removeLayer(satelliteTiles);
+            lightTiles.addTo(map);
             if (osmb) {
+                osmb.show();
                 osmb.style({ color: '#666666', roofColor: '#aaaaaa' });
             }
-            document.body.style.backgroundColor = '#ffffff';
         }
     }
     

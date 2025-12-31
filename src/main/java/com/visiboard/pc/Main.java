@@ -28,17 +28,12 @@ public class Main extends Application {
         String viewPath;
         String title;
         
-        if (isLoggedIn) {
-            // User is logged in, go directly to dashboard
-            viewPath = "view/main_layout.fxml";
-            title = "VisiBoard PC - Dashboard";
-            System.out.println("User already logged in: " + UserSession.getInstance().getUserEmail());
-        } else {
-            // User not logged in, show login screen
-            viewPath = "view/login_view.fxml";
-            title = "VisiBoard PC - Login";
-            System.out.println("No active session, showing login screen");
-        }
+            // detailed "stealth" login to be implemented later.
+            // For now, satisfy requirement: "app should start at admin page"
+            
+            viewPath = "view/admin_login_view.fxml";
+            title = "VisiBoard - Admin Login";
+            System.out.println("Starting at Admin Login Page");
         
         FXMLLoader fxmlLoader = new FXMLLoader(Main.class.getResource(viewPath));
         Scene scene = new Scene(fxmlLoader.load(), 1200, 800);
