@@ -211,8 +211,8 @@ public class SyncService {
             System.out.println("Fetched " + documents.size() + " reports from Firebase.");
 
             try (Connection conn = DatabaseService.getConnection()) {
-                String sql = "INSERT INTO reports (report_id, reporter_id, reported_user_id, reported_note_id, reason, target_details, type, timestamp, status, synced_at) " +
-                             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) " +
+                String sql = "INSERT INTO reports (report_id, reporter_id, reported_user_id, reported_note_id, category, description, reason, target_details, type, timestamp, status, synced_at) " +
+                             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) " +
                              "ON CONFLICT (report_id) DO UPDATE SET " +
                              "status = EXCLUDED.status, " +
                              "synced_at = CURRENT_TIMESTAMP";
@@ -240,16 +240,23 @@ public class SyncService {
                     pstmt.setString(3, reportedUser);
                     pstmt.setString(4, reportedNote);
                     
-                    // Reason: try reason, then description
-                    pstmt.setString(5, getString(doc, "reason", "description"));
-                    pstmt.setString(6, getString(doc, "targetDetails", "target_details"));
-                    pstmt.setString(7, type);
+                    // Category: SPAM, HATE_SPEECH, VIOLENCE, NUDITY, OTHER
+                    pstmt.setString(5, getString(doc, "category"));
+                    
+                    // Description: User-provided additional details
+                    pstmt.setString(6, getString(doc, "description"));
+                    
+                    // Reason: Legacy field (fallback to description if reason is empty)
+                    pstmt.setString(7, getString(doc, "reason", "description"));
+                    
+                    pstmt.setString(8, getString(doc, "targetDetails", "target_details"));
+                    pstmt.setString(9, type);
                     
                     Long ts = doc.getLong("timestamp");
-                    pstmt.setLong(8, ts != null ? ts : System.currentTimeMillis());
+                    pstmt.setLong(10, ts != null ? ts : System.currentTimeMillis());
                     
                     String status = doc.getString("status");
-                    pstmt.setString(9, status != null ? status : "PENDING");
+                    pstmt.setString(11, status != null ? status : "PENDING");
 
                     pstmt.addBatch();
                 }

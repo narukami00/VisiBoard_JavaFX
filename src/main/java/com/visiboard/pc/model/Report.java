@@ -43,10 +43,18 @@ public class Report {
     
     private String targetDetails;
     private String type; // NOTE or USER
+    private String category; // SPAM, HATE_SPEECH, VIOLENCE, NUDITY, OTHER
+    private String description; // User-provided additional details
 
     public String getTargetDetails() { return targetDetails; }
     public void setTargetDetails(String targetDetails) { this.targetDetails = targetDetails; }
 
     public String getType() { return type; }
     public void setType(String type) { this.type = type; }
+
+    public String getCategory() { return category; }
+    public void setCategory(String category) { this.category = category; }
+
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
 }

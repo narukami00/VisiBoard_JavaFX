@@ -87,6 +87,8 @@ public class DatabaseService {
                          "reporter_id VARCHAR(255), " +
                          "reported_user_id VARCHAR(255), " +
                          "reported_note_id VARCHAR(255), " +
+                         "category VARCHAR(100), " +
+                         "description TEXT, " +
                          "reason TEXT, " +
                          "target_details TEXT, " +
                          "type VARCHAR(50), " +
@@ -301,6 +303,8 @@ public class DatabaseService {
                 report.setReason(rs.getString("reason"));
                 report.setTargetDetails(rs.getString("target_details"));
                 report.setType(rs.getString("type"));
+                report.setCategory(rs.getString("category"));
+                report.setDescription(rs.getString("description"));
                 // timestamp is BIGINT in reports table, so getLong is safe
                 report.setTimestamp(rs.getLong("timestamp"));
                 report.setStatus(rs.getString("status"));

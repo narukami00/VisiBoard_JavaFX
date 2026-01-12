@@ -64,7 +64,9 @@ public class ReportedUsersFragment extends Fragment implements ReportAdapter.OnR
         
         reportListener = query.addSnapshotListener((snapshots, e) -> {
             if (e != null) {
-                Toast.makeText(getContext(), "Error loading reports: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                if (recyclerView != null) {
+                    com.google.android.material.snackbar.Snackbar.make(recyclerView, "Error loading reports: " + e.getMessage(), com.google.android.material.snackbar.Snackbar.LENGTH_SHORT).show();
+                }
                 return;
             }
             if (snapshots != null) {
@@ -101,12 +103,12 @@ public class ReportedUsersFragment extends Fragment implements ReportAdapter.OnR
                      ReportRepository.OnActionListener listener = new ReportRepository.OnActionListener() {
                         @Override
                         public void onSuccess() {
-                            Toast.makeText(getContext(), "Action Successful", Toast.LENGTH_SHORT).show();
+                            if (recyclerView != null) com.google.android.material.snackbar.Snackbar.make(recyclerView, "Action Successful", com.google.android.material.snackbar.Snackbar.LENGTH_SHORT).show();
                             repository.notifyUser(report.getReporterId(), "Your report has been reviewed.", "admin");
                         }
                         @Override
                         public void onFailure(String error) {
-                            Toast.makeText(getContext(), "Error: " + error, Toast.LENGTH_SHORT).show();
+                            if (recyclerView != null) com.google.android.material.snackbar.Snackbar.make(recyclerView, "Error: " + error, com.google.android.material.snackbar.Snackbar.LENGTH_SHORT).show();
                         }
                     };
                     String targetUserId = report.getTargetId(); // For USER reports, target IS user
@@ -121,7 +123,7 @@ public class ReportedUsersFragment extends Fragment implements ReportAdapter.OnR
                                 .show();
                             break;
                         case 1: // View All Notes
-                            Toast.makeText(getContext(), "Feature Coming Soon", Toast.LENGTH_SHORT).show();
+                            if (recyclerView != null) com.google.android.material.snackbar.Snackbar.make(recyclerView, "Feature Coming Soon", com.google.android.material.snackbar.Snackbar.LENGTH_SHORT).show();
                             break;
                         case 2: // Warn
                             repository.updateUserStatus(targetUserId, "warned", true, listener);
@@ -142,9 +144,9 @@ public class ReportedUsersFragment extends Fragment implements ReportAdapter.OnR
                         case 5: // Dismiss
                              repository.dismissReport(report.getId(), new ReportRepository.OnActionListener() {
                                 @Override
-                                public void onSuccess() { Toast.makeText(getContext(), "Dismissed", Toast.LENGTH_SHORT).show(); }
+                                public void onSuccess() { if (recyclerView != null) com.google.android.material.snackbar.Snackbar.make(recyclerView, "Dismissed", com.google.android.material.snackbar.Snackbar.LENGTH_SHORT).show(); }
                                 @Override
-                                public void onFailure(String e) { Toast.makeText(getContext(), "Error", Toast.LENGTH_SHORT).show(); }
+                                public void onFailure(String e) { if (recyclerView != null) com.google.android.material.snackbar.Snackbar.make(recyclerView, "Error", com.google.android.material.snackbar.Snackbar.LENGTH_SHORT).show(); }
                             });
                             break;
                     }

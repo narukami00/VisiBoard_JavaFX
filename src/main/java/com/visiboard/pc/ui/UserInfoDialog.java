@@ -146,9 +146,15 @@ public class UserInfoDialog extends Dialog<Void> {
         }
         
         if (image == null) {
-             String initial = (user.getName() != null && !user.getName().isEmpty()) ? user.getName().substring(0, 1).toUpperCase() : "?";
-             String url = "https://ui-avatars.com/api/?name=" + initial + "&background=e94560&color=fff&size=300";
-             image = new Image(url, true);
+             try {
+                 image = new Image(getClass().getResourceAsStream("/com/visiboard/pc/images/default_avatar.png"));
+             } catch (Exception e) {
+                 System.err.println("Could not load default avatar: " + e.getMessage());
+                 // Fallback to minimal colored square if resource fails
+                 String initial = (user.getName() != null && !user.getName().isEmpty()) ? user.getName().substring(0, 1).toUpperCase() : "?";
+                 String url = "https://ui-avatars.com/api/?name=" + initial + "&background=e94560&color=fff&size=300";
+                 image = new Image(url, true);
+             }
         }
         
         if (image != null) {

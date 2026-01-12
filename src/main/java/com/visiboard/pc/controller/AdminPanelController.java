@@ -238,12 +238,40 @@ public class AdminPanelController {
                     setGraphic(null);
                     setStyle("-fx-background-color: transparent;");
                 } else {
-                    javafx.scene.layout.VBox root = new javafx.scene.layout.VBox(5);
+                    javafx.scene.layout.VBox root = new javafx.scene.layout.VBox(8);
                     root.getStyleClass().add("list-item-card");
+                    root.setPadding(new javafx.geometry.Insets(12));
                     
+                    // Header Row: Category Badge + Status
                     javafx.scene.layout.HBox header = new javafx.scene.layout.HBox(10);
                     header.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
                     
+                    // Category Badge - Primary visual element
+                    String categoryText = report.getCategory();
+                    if (categoryText == null || categoryText.isEmpty()) {
+                        categoryText = "OTHER";
+                    }
+                    Label categoryBadge = new Label(formatCategory(categoryText));
+                    categoryBadge.setStyle(getCategoryStyle(categoryText));
+                    categoryBadge.setPadding(new javafx.geometry.Insets(4, 10, 4, 10));
+                    
+                    // Report Type Icon
+                    Label typeIcon = new Label(isNoteReport ? "📝" : "👤");
+                    typeIcon.setStyle("-fx-font-size: 16px;");
+                    
+                    javafx.scene.layout.Region spacer = new javafx.scene.layout.Region();
+                    javafx.scene.layout.HBox.setHgrow(spacer, javafx.scene.layout.Priority.ALWAYS);
+                    
+                    // Status Badge
+                    Label statusLabel = new Label(report.getStatus());
+                    statusLabel.getStyleClass().add("status-badge");
+                    if ("ACTION_TAKEN".equals(report.getStatus())) statusLabel.getStyleClass().add("verified");
+                    else if ("DISMISSED".equals(report.getStatus())) statusLabel.getStyleClass().add("dismissed");
+                    else statusLabel.getStyleClass().add("pending");
+                    
+                    header.getChildren().addAll(categoryBadge, typeIcon, spacer, statusLabel);
+                    
+                    // Reporter/Reported Row
                     String resolvedReporterName = report.getReporterName();
                     if (resolvedReporterName == null || resolvedReporterName.isEmpty()) {
                         resolvedReporterName = report.getReporterId();
@@ -260,33 +288,45 @@ public class AdminPanelController {
                         resolvedReportedName = "Unknown User";
                     }
                     
-                    Label titleLabel = new Label("Reporter: " + resolvedReporterName + "  ->  Reported: " + resolvedReportedName);
-                    titleLabel.getStyleClass().add("list-cell-title");
+                    javafx.scene.layout.HBox usersRow = new javafx.scene.layout.HBox(8);
+                    usersRow.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+                    Label fromLabel = new Label("From:");
+                    fromLabel.setStyle("-fx-text-fill: #2c2c2c; -fx-font-size: 11px;");
+                    Label reporterLabel = new Label(resolvedReporterName);
+                    reporterLabel.setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold; -fx-font-size: 12px;");
+                    Label arrowLabel = new Label("→");
+                    arrowLabel.setStyle("-fx-text-fill: #666; -fx-font-size: 14px;");
+                    Label toLabel = new Label("Target:");
+                    toLabel.setStyle("-fx-text-fill: #2c2c2c; -fx-font-size: 11px;");
+                    Label reportedLabel = new Label(resolvedReportedName);
+                    reportedLabel.setStyle("-fx-text-fill: #ff6b6b; -fx-font-weight: bold; -fx-font-size: 12px;");
+                    usersRow.getChildren().addAll(fromLabel, reporterLabel, arrowLabel, toLabel, reportedLabel);
                     
-                    javafx.scene.layout.Region spacer = new javafx.scene.layout.Region();
-                    javafx.scene.layout.HBox.setHgrow(spacer, javafx.scene.layout.Priority.ALWAYS);
-                    
-                    Label statusLabel = new Label(report.getStatus());
-                    
+                    // Description Row (if available)
+                    String description = report.getDescription();
+                    javafx.scene.layout.VBox descriptionBox = null;
+                    if (description != null && !description.trim().isEmpty()) {
+                        descriptionBox = new javafx.scene.layout.VBox(4);
+                        Label descLabel = new Label("Additional Details:");
+                        descLabel.setStyle("-fx-text-fill: #2c2c2c; -fx-font-size: 10px; -fx-font-weight: bold;");
+                        Label descContent = new Label("\"" + description + "\"");
+                        descContent.setStyle("-fx-text-fill: #4a4a4a; -fx-font-size: 12px; -fx-font-style: italic;");
+                        descContent.setWrapText(true);
+                        descriptionBox.getChildren().addAll(descLabel, descContent);
+                        descriptionBox.setStyle("-fx-background-color: rgba(255,255,255,0.05); -fx-background-radius: 6; -fx-padding: 8;");
+                    }
 
-                    
-                    statusLabel.getStyleClass().add("status-badge");
-                    if ("ACTION_TAKEN".equals(report.getStatus())) statusLabel.getStyleClass().add("verified");
-                    else if ("DISMISSED".equals(report.getStatus())) statusLabel.getStyleClass().add("dismissed");
-                    else statusLabel.getStyleClass().add("pending");
-                    
-                    header.getChildren().addAll(titleLabel, spacer, statusLabel);
-                    
-                    Label reasonLabel = new Label("Reason: " + report.getReason());
-                    reasonLabel.getStyleClass().add("list-cell-detail");
-                    
+                    // Target Details / Content Preview
                     Label detailsLabel = new Label();
                     if (report.getTargetDetails() != null && !report.getTargetDetails().isEmpty()) {
-                        detailsLabel.setText("Content: " + report.getTargetDetails());
+                        String preview = report.getTargetDetails();
+                        if (preview.length() > 100) preview = preview.substring(0, 100) + "...";
+                        detailsLabel.setText("Content: " + preview);
                     } else {
-                        detailsLabel.setText("No Details Available");
+                        detailsLabel.setText("No content preview available");
                     }
                     detailsLabel.getStyleClass().add("list-cell-subtitle");
+                    detailsLabel.setWrapText(true);
 
                     // Info Row
                     Label infoLabel; 
@@ -295,44 +335,86 @@ public class AdminPanelController {
                     } else {
                          infoLabel = new Label("User ID: " + report.getReportedUserId());
                     }
-                    infoLabel.getStyleClass().add("list-cell-subtitle");
+                    infoLabel.setStyle("-fx-text-fill: #666; -fx-font-size: 10px;");
+                    
+                    // Timestamp
+                    long timestamp = report.getTimestamp();
+                    String timeStr = timestamp > 0 ? new java.text.SimpleDateFormat("MMM dd, yyyy HH:mm").format(new java.util.Date(timestamp)) : "Unknown";
+                    Label timeLabel = new Label("Reported: " + timeStr);
+                    timeLabel.setStyle("-fx-text-fill: #666; -fx-font-size: 10px;");
+                    
+                    javafx.scene.layout.HBox infoRow = new javafx.scene.layout.HBox(15);
+                    infoRow.getChildren().addAll(infoLabel, timeLabel);
                     
                     // Action Buttons Row
-                    javafx.scene.layout.HBox actionsBox = new javafx.scene.layout.HBox(10);
+                    javafx.scene.layout.HBox actionsBox = new javafx.scene.layout.HBox(8);
                     actionsBox.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
-                    actionsBox.setPadding(new javafx.geometry.Insets(5, 0, 0, 0));
+                    actionsBox.setPadding(new javafx.geometry.Insets(8, 0, 0, 0));
                     
-                    Button dismissBtn = new Button("Dismiss");
-                    dismissBtn.setStyle("-fx-background-color: #95a5a6; -fx-text-fill: white; -fx-font-size: 11px;");
+                    Button dismissBtn = new Button("✕ Dismiss");
+                    dismissBtn.setStyle("-fx-background-color: #4a4a5a; -fx-text-fill: white; -fx-font-size: 11px; -fx-background-radius: 4;");
                     dismissBtn.setOnAction(e -> handleDismissReport(report));
                     
-                    Button warnBtn = new Button("Warn User");
-                    warnBtn.setStyle("-fx-background-color: #f39c12; -fx-text-fill: white; -fx-font-size: 11px;");
+                    Button warnBtn = new Button("⚠ Warn");
+                    warnBtn.setStyle("-fx-background-color: #f39c12; -fx-text-fill: white; -fx-font-size: 11px; -fx-background-radius: 4;");
                     warnBtn.setOnAction(e -> handleWarnUser(report));
                     
-                    Button restrictBtn = new Button("Restrict User");
-                    restrictBtn.setStyle("-fx-background-color: #e67e22; -fx-text-fill: white; -fx-font-size: 11px;");
+                    Button restrictBtn = new Button("🔒 Restrict");
+                    restrictBtn.setStyle("-fx-background-color: #e67e22; -fx-text-fill: white; -fx-font-size: 11px; -fx-background-radius: 4;");
                     restrictBtn.setOnAction(e -> handleRestrictUser(report));
 
-                    Button banBtn = new Button("Ban User");
-                    banBtn.setStyle("-fx-background-color: #c0392b; -fx-text-fill: white; -fx-font-size: 11px;");
+                    Button banBtn = new Button("🚫 Ban");
+                    banBtn.setStyle("-fx-background-color: #c0392b; -fx-text-fill: white; -fx-font-size: 11px; -fx-background-radius: 4;");
                     banBtn.setOnAction(e -> handleBanUser(report));
                     
                     actionsBox.getChildren().addAll(dismissBtn, warnBtn, restrictBtn, banBtn);
                     
                     if (isNoteReport) {
-                        Button deleteNoteBtn = new Button("Delete Note");
-                        deleteNoteBtn.setStyle("-fx-background-color: #8e44ad; -fx-text-fill: white; -fx-font-size: 11px;");
+                        Button deleteNoteBtn = new Button("🗑 Delete Note");
+                        deleteNoteBtn.setStyle("-fx-background-color: #8e44ad; -fx-text-fill: white; -fx-font-size: 11px; -fx-background-radius: 4;");
                         deleteNoteBtn.setOnAction(e -> handleDeleteNote(report));
                         actionsBox.getChildren().add(deleteNoteBtn);
                     }
                     
-                    root.getChildren().addAll(header, reasonLabel, detailsLabel, infoLabel, actionsBox);
+                    // Build layout
+                    root.getChildren().addAll(header, usersRow);
+                    if (descriptionBox != null) {
+                        root.getChildren().add(descriptionBox);
+                    }
+                    root.getChildren().addAll(detailsLabel, infoRow, actionsBox);
                     
 
                     
                     setGraphic(root);
                     setStyle("-fx-background-color: transparent;");
+                }
+            }
+            
+            private String formatCategory(String category) {
+                if (category == null) return "Other";
+                return category.replace("_", " ").toLowerCase()
+                    .substring(0, 1).toUpperCase() + category.replace("_", " ").toLowerCase().substring(1);
+            }
+            
+            private String getCategoryStyle(String category) {
+                String baseStyle = "-fx-background-radius: 12; -fx-font-size: 11px; -fx-font-weight: bold;";
+                if (category == null) category = "OTHER";
+                switch (category.toUpperCase()) {
+                    case "SPAM":
+                        return baseStyle + "-fx-background-color: #3498db; -fx-text-fill: white;";
+                    case "HATE_SPEECH":
+                    case "HATE SPEECH":
+                        return baseStyle + "-fx-background-color: #e74c3c; -fx-text-fill: white;";
+                    case "VIOLENCE":
+                        return baseStyle + "-fx-background-color: #c0392b; -fx-text-fill: white;";
+                    case "NUDITY":
+                        return baseStyle + "-fx-background-color: #9b59b6; -fx-text-fill: white;";
+                    case "HARASSMENT":
+                        return baseStyle + "-fx-background-color: #e67e22; -fx-text-fill: white;";
+                    case "MISINFORMATION":
+                        return baseStyle + "-fx-background-color: #f39c12; -fx-text-fill: black;";
+                    default:
+                        return baseStyle + "-fx-background-color: #95a5a6; -fx-text-fill: white;";
                 }
             }
         });
@@ -735,9 +817,13 @@ public class AdminPanelController {
                          // avatar.setImage(new Image(...));
                     }
                     if (avatar.getImage() == null) {
-                         // If still null (e.g. exception or resource not found), use a colored circle logic or placeholder
-                         // For now, we leave it empty or set a color in background
-                         avatar.setStyle("-fx-fill: #808080;");
+                         try {
+                              avatar.setImage(new javafx.scene.image.Image(getClass().getResourceAsStream("/com/visiboard/pc/images/default_avatar.png")));
+                         } catch (Exception e) {
+                              // If still fails, fallback to color
+                              System.err.println("Could not load default avatar in user list: " + e.getMessage());
+                              avatar.setStyle("-fx-fill: #808080;");
+                         }
                     }
                     
                     javafx.scene.layout.VBox info = new javafx.scene.layout.VBox(3);

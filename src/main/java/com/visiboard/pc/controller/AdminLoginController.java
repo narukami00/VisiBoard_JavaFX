@@ -10,8 +10,11 @@ import javafx.stage.Stage;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import com.visiboard.pc.Main;
+import com.google.cloud.firestore.DocumentSnapshot;
 
 import java.io.IOException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 
 public class AdminLoginController {
 
@@ -29,10 +32,6 @@ public class AdminLoginController {
     
     @FXML
     private Label syncStatusLabel;
-
-    // Placeholder credentials - will be replaced with proper authentication
-    private static final String ADMIN_USERNAME = "admin";
-    private static final String ADMIN_PASSWORD = "admin123";
 
     @FXML
     private void initialize() {
@@ -83,19 +82,88 @@ public class AdminLoginController {
             errorLabel.setText("");
         }
 
-        // Simulate authentication check (placeholder)
-        Platform.runLater(() -> {
-            if (username.equals(ADMIN_USERNAME) && password.equals(ADMIN_PASSWORD)) {
-                // Login successful
-                System.out.println("Admin login successful");
-                navigateToAdminPanel();
-            } else {
-                // Login failed
-                showError("Invalid admin credentials");
+        // Validate credentials against Firebase Firestore
+        validateCredentials(username.trim(), password, (isValid) -> {
+            Platform.runLater(() -> {
+                if (isValid) {
+                    System.out.println("Admin login successful");
+                    navigateToAdminPanel();
+                } else {
+                    showError("Invalid admin credentials");
+                    loginButton.setDisable(false);
+                    loginButton.setText("Login");
+                }
+            });
+        }, (error) -> {
+            Platform.runLater(() -> {
+                showError(error);
                 loginButton.setDisable(false);
                 loginButton.setText("Login");
-            }
+            });
         });
+    }
+
+    /**
+     * Validates admin credentials against Firebase Firestore.
+     */
+    private void validateCredentials(String id, String password, 
+            java.util.function.Consumer<Boolean> onResult, 
+            java.util.function.Consumer<String> onError) {
+        try {
+            com.google.cloud.firestore.Firestore db = com.visiboard.pc.services.FirebaseService.getFirestore();
+            
+            db.collection("admin_config").document("credentials").get()
+                .addListener(() -> {}, Runnable::run); // Force async
+            
+            // Use async get
+            com.google.api.core.ApiFuture<DocumentSnapshot> future = 
+                db.collection("admin_config").document("credentials").get();
+            
+            future.addListener(() -> {
+                try {
+                    DocumentSnapshot document = future.get();
+                    if (document.exists()) {
+                        String storedId = document.getString("adminId");
+                        String storedHash = document.getString("passwordHash");
+                        
+                        if (storedId == null || storedHash == null) {
+                            onError.accept("Invalid admin configuration");
+                            return;
+                        }
+                        
+                        String inputHash = hashPassword(password);
+                        boolean isValid = id.equals(storedId) && inputHash.equals(storedHash);
+                        onResult.accept(isValid);
+                    } else {
+                        onError.accept("Admin configuration not found");
+                    }
+                } catch (Exception e) {
+                    onError.accept("Failed to verify credentials: " + e.getMessage());
+                }
+            }, Runnable::run);
+            
+        } catch (Exception e) {
+            onError.accept("Firebase error: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Hashes a password using SHA-256.
+     */
+    private String hashPassword(String password) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(password.getBytes());
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : hash) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) hexString.append('0');
+                hexString.append(hex);
+            }
+            return hexString.toString();
+        } catch (NoSuchAlgorithmException e) {
+            return "";
+        }
     }
 
     private void showError(String message) {
